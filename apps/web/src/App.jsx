@@ -1,0 +1,57 @@
+import HomePage from "./pages/home/HomePage";
+import { Routes, Route } from "react-router-dom";
+import LibraryPage from "./pages/library/LibraryPage";
+import LikedSongs from "./pages/likedsongs/LikedSongs";
+import CreatePlaylist from "./pages/createplaylist/CreatePlaylist";
+import MainLayout from "./layouts/MainLayout";
+import MiniPlayer from "./components/MiniPlayer";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import { useEffect } from "react";
+import axios from "axios";
+import AuthProvider from "./provider/authProvider.jsx";
+import { ProtectedRoute } from "./routes/ProtectedRoute";
+
+export function useSyncUser() {
+  const { user, isSignedIn } = useUser();
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    if (isSignedIn && user) {
+      (async () => {
+        try {
+          const token = await getToken();
+          await axios.post(
+            `http://localhost:3000/api/sync-user/${user.id}`,
+            {},
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          console.log("✅ User synced with backend");
+        } catch (err) {
+          console.error("❌ Sync failed:", err);
+        }
+      })();
+    }
+  }, [isSignedIn, user, getToken]);
+}
+export default function App() {
+  useSyncUser();
+  return (
+    <>
+      <AuthProvider>
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/likedsongs" element={<LikedSongs />} />
+              <Route path="/createplaylist" element={<CreatePlaylist />} />
+            </Route>
+            <Route path="/search" element={<MiniPlayer />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </>
+  );
+}
