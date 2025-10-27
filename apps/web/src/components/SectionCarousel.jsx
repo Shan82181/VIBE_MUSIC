@@ -7,38 +7,26 @@ import {
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 
-export default function SectionCarousel({ title, items, onPlay, onOpenPlaylist }) {
+export default function SectionCarousel({ title, items}) {
   if (!items || items.length === 0) return null;
-
+ //console.log(title);
   return (
     <div className="mb-10">
       <h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>
 
-      <Carousel
-        opts={{
-          align: "start",
-          dragFree: true,
-          loop: false, // no infinite loop – natural scroll
-        }}
-        className="w-full"
-      >
+      <Carousel opts={{ align: "start", loop: true }} className="w-full">
         <CarouselContent>
           {items.map((item, index) => (
             <CarouselItem
               key={index}
-              // responsive width: 2 per row on small screens, 5–6 on large
               className="basis-1/2 sm:basis-1/3 md:basis-1/5 lg:basis-1/6"
             >
               <Card
-                onClick={() =>
-                  item.type === "song"
-                    ? onPlay(item)
-                    : onOpenPlaylist?.(item)
-                }
-                className="bg-neutral-900 hover:bg-neutral-800 hover:scale-[1.02] transition-transform cursor-pointer rounded-2xl overflow-hidden"
+                
+                className="bg-neutral-900 hover:bg-neutral-800 transition-all cursor-pointer rounded-2xl overflow-hidden"
               >
                 <CardContent className="p-3 flex flex-col items-center">
-                  {/* ✅ consistent size for all */}
+                  {/* ✅ Fixed-size image container */}
                   <div className="w-full aspect-square relative overflow-hidden rounded-xl">
                     <img
                       src={item.thumbnail}
@@ -48,7 +36,7 @@ export default function SectionCarousel({ title, items, onPlay, onOpenPlaylist }
                     />
                   </div>
 
-                  {/* ✅ consistent height for text */}
+                  {/* ✅ Fixed text section */}
                   <p className="text-sm mt-2 text-center text-white line-clamp-2 h-[2.5rem]">
                     {item.title}
                   </p>
@@ -58,13 +46,8 @@ export default function SectionCarousel({ title, items, onPlay, onOpenPlaylist }
           ))}
         </CarouselContent>
 
-        {/* show controls only if > visible cards */}
-        {items.length > 6 && (
-          <>
-            <CarouselPrevious />
-            <CarouselNext />
-          </>
-        )}
+        <CarouselPrevious />
+        <CarouselNext />
       </Carousel>
     </div>
   );

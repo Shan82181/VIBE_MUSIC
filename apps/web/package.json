@@ -16,6 +16,7 @@
     "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.544.0",
     "motion": "^12.23.19",
     "react": "^19.1.1",
@@ -23,6 +24,7 @@
     "react-resizable-panels": "^3.0.6",
     "react-router-dom": "^7.9.1",
     "tailwind-merge": "^3.3.1",
+    "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4.1.13"
   },
   "devDependencies": {

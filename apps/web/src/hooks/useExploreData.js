@@ -1,7 +1,7 @@
 import { useEffect, useState , useRef} from "react";
 import api from "@/lib/axios";
 
-export function useHomeData() {
+export function useExploreData() {
   const [data, setData] = useState({ trending: [], playlists: [], featured: [], artists: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +12,7 @@ export function useHomeData() {
     fetchedRef.current = true;
     async function fetchData() {
       try {
-        const res = await api.get("/home");
+        const res = await api.get("/explore");
         setData(res.data);
         //console.log("Home data fetched:", res.data);
       } catch (err) {

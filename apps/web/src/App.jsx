@@ -1,6 +1,6 @@
 import HomePage from "./pages/home/HomePage";
 import { Routes, Route } from "react-router-dom";
-import LibraryPage from "./pages/library/LibraryPage";
+//import LibraryPage from "./pages/library/LibraryPage";
 import LikedSongs from "./pages/likedsongs/LikedSongs";
 import CreatePlaylist from "./pages/createplaylist/CreatePlaylist";
 import MainLayout from "./layouts/MainLayout";
@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import axios from "axios";
 import AuthProvider from "./provider/authProvider.jsx";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+import ExplorePage from "./pages/explore/ExplorePage.jsx";
+import { PlayerProvider } from "./context/PlayerContext.jsx";
 
 export function useSyncUser() {
   const { user, isSignedIn } = useUser();
@@ -40,17 +42,19 @@ export default function App() {
   return (
     <>
       <AuthProvider>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/likedsongs" element={<LikedSongs />} />
-              <Route path="/createplaylist" element={<CreatePlaylist />} />
+        <PlayerProvider>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/library" element={<ExplorePage />} />
+                <Route path="/likedsongs" element={<LikedSongs />} />
+                <Route path="/createplaylist" element={<CreatePlaylist />} />
+              </Route>
+              <Route path="/search" element={<MiniPlayer />} />
             </Route>
-            <Route path="/search" element={<MiniPlayer />} />
-          </Route>
-        </Routes>
+          </Routes>
+        </PlayerProvider>
       </AuthProvider>
     </>
   );

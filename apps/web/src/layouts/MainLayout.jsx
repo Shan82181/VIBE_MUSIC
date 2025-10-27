@@ -8,8 +8,9 @@ import Topbar from "../components/Topbar";
 import Sidebar from "../components/Sidebar";
 const MainLayout = () => {
   return (
-    <div className="flex flex-col h-screen bg-cyan-600">
+    <div className="flex flex-col h-screen">
       <Topbar></Topbar>
+      {/* <Sidebar></Sidebar> */}
       <ResizablePanelGroup className="bg-amber-300 flex-1" direction="horizontal">
         <ResizablePanel minSize={15} defaultSize={20} maxSize={25} className="bg-black">
           <Sidebar></Sidebar>

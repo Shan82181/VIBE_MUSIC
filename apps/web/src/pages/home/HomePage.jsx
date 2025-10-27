@@ -1,30 +1,44 @@
+import React from "react";
+import { useHomeData } from "../../hooks/useHomeData";
+import SectionCarousel from "../../components/SectionCarousel";
 import { Loader2 } from "lucide-react";
-import { Section } from "@/components/Section";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useHomeData } from "@/hooks/useHomeData";
+import SectionRendrer from "../../components/SectionRendrer";
 
 export default function HomePage() {
   const { data, loading, error } = useHomeData();
+  const sections = data?.sections || [];
+  console.log(sections);
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex flex-col items-center justify-center h-screen text-gray-400">
-        <Loader2 className="animate-spin mb-3" size={32} />
-        <p>Loading your music experience...</p>
+      <div className="flex justify-center items-center h-screen text-white">
+        <Loader2 className="animate-spin mr-2" /> Loading...
       </div>
     );
-  }
 
-  if (error) return <ErrorBoundary error={error} />;
-
-  const { trending, playlists, featured, artists } = data;
+  if (error)
+    return (
+      <div className="text-center text-red-500 mt-10">
+        Failed to load: {error}
+      </div>
+    );
 
   return (
-    <main className="px-8 py-10 space-y-12 bg-[#0d0d0d] min-h-screen">
-      <Section title="🔥 Trending Now" items={trending} />
-      <Section title="💿 Playlists You Might Like" items={playlists} />
-      <Section title="🌟 Featured" items={featured} />
-      <Section title="👩‍🎤 Popular Artists" items={artists} />
-    </main>
+    <div className="px-13 py-8 h-full overflow-y-auto no-scrollbar bg-black text-white">
+      {/* {sections.map((section, index) => (
+        <SectionCarousel
+          key={index} 
+          title={section.title}
+          items={section.items}
+        />
+      ))} */}
+      {sections.map((section, index) => (
+        <SectionRendrer
+          key={index} 
+          MainTitle={section.title}
+          items={section.items}
+        />
+      ))}
+    </div>
   );
 }
