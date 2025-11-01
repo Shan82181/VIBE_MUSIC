@@ -7,7 +7,7 @@ router.get("/explore", async (_, res) => {
     const data = await getExplore();
     res.json(data);
   } catch (err) {
-    console.error('Home data error:', err.message);
+    console.error('Explore data error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });

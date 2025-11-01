@@ -18,6 +18,7 @@ import apiRoutes from './src/routes/api.js';
 import syncUser from './src/routes/syncUser.js';
 import HomePageData from './src/routes/homePage.route.js';
 import ExplorePageData from './src/routes/explorePage.route.js';
+import BrowsePageData from './src/routes/browsePage.route.js';
 //import { getQuickPicks } from './src/services/innertubeService.js';
 //<-- App config -->
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api',requireAuth(), apiRoutes);
 app.use('/api', syncUser);
 app.use('/api', requireAuth(), HomePageData);
 app.use('/api', requireAuth(), ExplorePageData);
+app.use('/api', requireAuth(), BrowsePageData);
 
 
 

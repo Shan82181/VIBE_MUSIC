@@ -8,14 +8,19 @@ import {
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePlayer } from "@/context/PlayerContext";
+import { useNavigate } from "react-router-dom";
 
 const SectionRendrer = (props) => {
+   const navigate = useNavigate();
+  const handleBrowse = (browseId) => {
+    navigate(`/playlist/${browseId}`);
+  }
   const { MainTitle, items } = props;
   const { playTrack } = usePlayer();
   const handleItemClick = (item) => {
     if (item.type === "song" && item.videoId) {
       playTrack(item);
-    } else if ((item.type === "playlist" || item.type === "category") && item.browseId) {
+    } else if ((item.type === "playlist" || item.type === "category" || item.type===  "album") && item.browseId) {
       handleBrowse(item.browseId);
     } else {
       console.warn("Unknown item type:", item);

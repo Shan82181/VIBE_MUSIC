@@ -19,15 +19,7 @@ const ExplorePage = () => {
     data?.sections?.filter((s) => s.title === "New music videos") || [];
 
   // console.log(NewMusicVideos);
-  const handlePlay = (track) => {
-    console.log("Play:", track.title, track.videoId);
-    // TODO: integrate with your global player context
-  };
-
-  const handleOpenPlaylist = (playlist) => {
-    console.log("Open Playlist:", playlist.browseId);
-    // TODO: navigate(`/playlist/${playlist.browseId}`)
-  };
+  
 
   if (loading)
     return (

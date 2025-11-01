@@ -1,6 +1,4 @@
-import React from "react";
 import { useHomeData } from "../../hooks/useHomeData";
-import SectionCarousel from "../../components/SectionCarousel";
 import { Loader2 } from "lucide-react";
 import SectionRendrer from "../../components/SectionRendrer";
 
@@ -25,13 +23,6 @@ export default function HomePage() {
 
   return (
     <div className="px-13 py-8 h-full overflow-y-auto no-scrollbar bg-black text-white">
-      {/* {sections.map((section, index) => (
-        <SectionCarousel
-          key={index} 
-          title={section.title}
-          items={section.items}
-        />
-      ))} */}
       {sections.map((section, index) => (
         <SectionRendrer
           key={index} 

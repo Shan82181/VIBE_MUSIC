@@ -12,6 +12,7 @@ import AuthProvider from "./provider/authProvider.jsx";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import ExplorePage from "./pages/explore/ExplorePage.jsx";
 import { PlayerProvider } from "./context/PlayerContext.jsx";
+import PlaylistPage from "./pages/playlist/PlaylistPage.jsx";
 
 export function useSyncUser() {
   const { user, isSignedIn } = useUser();
@@ -50,6 +51,7 @@ export default function App() {
                 <Route path="/library" element={<ExplorePage />} />
                 <Route path="/likedsongs" element={<LikedSongs />} />
                 <Route path="/createplaylist" element={<CreatePlaylist />} />
+                <Route path="/playlist/:browseId" element={<PlaylistPage />} />
               </Route>
               <Route path="/search" element={<MiniPlayer />} />
             </Route>
