@@ -11,24 +11,32 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useNavigate } from "react-router-dom";
 
 const SectionRendrer = (props) => {
-   const navigate = useNavigate();
-  const handleBrowse = (browseId) => {
-    navigate(`/playlist/${browseId}`);
-  }
+  const navigate = useNavigate();
+  const handleBrowse = (browseId, params) => {
+    navigate(
+      `/playlist/${browseId}${
+        params ? `?params=${encodeURIComponent(params)}` : ""
+      }`
+    );
+  };
   const { MainTitle, items } = props;
   const { playTrack } = usePlayer();
   const handleItemClick = (item) => {
     if (item.type === "song" && item.videoId) {
       playTrack(item);
-    } else if ((item.type === "playlist" || item.type === "category" || item.type===  "album") && item.browseId) {
-      handleBrowse(item.browseId);
+    } else if (
+      (item.type === "playlist" ||
+        item.type === "category" ||
+        item.type === "album") &&
+      item.browseId
+    ) {
+      handleBrowse(item.browseId, item.params);
     } else {
       console.warn("Unknown item type:", item);
     }
   };
-if (!items || items.length === 0) return null;
+  if (!items || items.length === 0) return null;
   return (
-    
     <div className="mb-10">
       <h2 className="text-2xl font-semibold mb-4 text-white">{MainTitle}</h2>
 
@@ -40,7 +48,10 @@ if (!items || items.length === 0) return null;
               className="basis-1/2 sm:basis-1/3 md:basis-1/5 lg:basis-1/6"
             >
               <Card className="bg-transparent border-none cursor-pointer hover:scale-[1.03] transition-transform duration-300 rounded-2xl">
-                <CardContent className="flex flex-col items-start w-full h-full p-0" onClick={() => handleItemClick(item)}>
+                <CardContent
+                  className="flex flex-col items-start w-full h-full p-0"
+                  onClick={() => handleItemClick(item)}
+                >
                   {/* ✅ Thumbnail section */}
                   <div className="w-full aspect-square rounded-xl overflow-hidden">
                     <img

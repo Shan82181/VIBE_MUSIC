@@ -1,5 +1,7 @@
 import axios from 'axios';
 import{ JsDecipher } from './jsDecipher.js';
+import { parseTwoColumnBrowseResultsRenderer } from './parser/parseTwoColumnBrowseResultsRenderer.js';
+import { parseSingleColumnBrowseResultsRenderer } from './parser/parseSingleColumnBrowseResultsRenderer.js';
 
 const API_KEY = process.env.API_KEY;
 const BASE_URL = 'https://youtubei.googleapis.com/youtubei/v1';
@@ -102,108 +104,39 @@ export async function getStreamingUrls(videoId, clientType = 'ANDROID') {
 // export  { searchTracks, getTrackMetadata, getStreamingUrls };
 // 📄 Utility — Generic browse function
 // 📄 Utility — Generic browse function (updated with working client)
-async function browse(browseId) {
+async function browse(browseId, params = null) {
   const remixContext = {
     client: {
       clientName: "WEB_REMIX",
-      clientVersion: "1.20251010.01.00", // use the version you saw in DevTools
+      clientVersion: "1.20251010.01.00", // version from DevTools
       hl: "en",
       gl: "US",
-    }
+    },
   };
 
   try {
+    // ✅ Build the request body dynamically
+    const body = {
+      context: remixContext,
+      browseId,
+    };
+
+    // ✅ Only include params when available
+    if (params) body.params = params;
+
     const res = await axios.post(
       `${BASE_URL}/browse?key=${API_KEY}`,
-      { context: remixContext, browseId },
+      body,
       { headers: { "Content-Type": "application/json" } }
     );
+
     return res.data;
   } catch (err) {
-    console.error('Innertube browse error:', err.response?.data || err.message);
+    console.error("Innertube browse error:", err.response?.data || err.message);
     throw err;
   }
 }
 
-function parseTwoColumnBrowseResultsRenderer(data) {
-  const root = data?.contents?.twoColumnBrowseResultsRenderer;
-  if (!root) return null;
-
-  const header = root?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-    ?.contents?.find(c => c.musicResponsiveHeaderRenderer)?.musicResponsiveHeaderRenderer;
-
-  const title = header?.title?.runs?.[0]?.text || '';
-  const thumbnails = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-
-  const shelf = root?.secondaryContents?.sectionListRenderer?.content?.[0]?.musicPlaylistShelfRenderer;
-  const playlistId = shelf?.playlistId;
-  const songs = [];
-
-  for (const item of shelf?.contents || []) {
-    const r = item.musicResponsiveListItemRenderer;
-    if (!r) continue;
-
-    const thumb = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.at(-1)?.url;
-    const videoId = r?.playlistItemData?.videoId;
-    const name = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-    const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.map(r => r.text).join('') || '';
-
-    songs.push({ title: name, artist, videoId, thumbnail: thumb });
-  }
-
-  return { type: 'playlist', title, thumbnails, playlistId, songs };
-}
-
-function parseSingleColumnBrowseResultsRenderer(data) {
-  const root = data?.contents?.singleColumnBrowseResultsRenderer;
-  if (!root) return null;
-
-  const sections = [];
-  const sectionList = root?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-
-  for (const section of sectionList) {
-    if (section.musicCarouselShelfRenderer) {
-      const shelf = section.musicCarouselShelfRenderer;
-      const shelfTitle = shelf?.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text || '';
-      const items = [];
-
-      for (const content of shelf.contents || []) {
-        if (content.musicResponsiveListItemRenderer) {
-          const r = content.musicResponsiveListItemRenderer;
-          const title = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || '';
-          const videoId = r.playlistItemData?.videoId;
-          const thumbnail = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.at(-1)?.url;
-          items.push({ type: 'song', title, videoId, thumbnail });
-        }
-        if (content.musicTwoRowItemRenderer) {
-          const r = content.musicTwoRowItemRenderer;
-          const title = r?.title?.runs?.[0]?.text || '';
-          const browseId = r.navigationEndpoint?.browseEndpoint?.browseId || null;
-          const thumbnail = r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.at(-1)?.url;
-          items.push({ type: 'playlist', title, browseId, thumbnail });
-        }
-      }
-
-      if (items.length) sections.push({ title: shelfTitle, items });
-    }
-
-    if (section.musicTastebuilderShelfRenderer) {
-      sections.push({ type: 'tastebuilder', title: 'Tell us what you like' });
-    }
-  }
-
-  return { type: 'home', sections };
-}
-
-function parseYouTubeMusic(json) {
-  if (json?.contents?.twoColumnBrowseResultsRenderer) return parseTwoColumnBrowseResultsRenderer(json);
-  if (json?.contents?.singleColumnBrowseResultsRenderer) return parseSingleColumnBrowseResultsRenderer(json);
-  return { type: 'unknown', raw: json };
-}
-
-// ----------------------------------------
-// Get Home or Playlist Data
-// ----------------------------------------
 export async function getHomeOrPlaylist(browseId = 'FEmusic_home') {
   const data = await browse(browseId);
   const parsed = parseYouTubeMusic(data);
@@ -307,113 +240,29 @@ export function parseExplore(data) {
   return { type: "explore", sections };
 }
 
-
 export async function getExplore(browseId = 'FEmusic_explore') {
   const data = await browse(browseId);
-  const parsed = parseExplore(data);
+  const parsed = parseYouTubeMusic(data);
   return parsed;
 }
 
-function parsePlaylistPage(data) {
-const result = {
-    playlist: {
-      title: null,
-      thumbnail: null,
-      subtitle: [],
-      secondSubtitle: [],
-    },
-    songs: [],
-  };
+export function parseYouTubeMusic(data) {
+  const hasTwoColumn = !!data?.contents?.twoColumnBrowseResultsRenderer;
+  const hasSingleColumn = !!data?.contents?.singleColumnBrowseResultsRenderer;
 
-  try {
-    // === Playlist Header ===
-    const header =
-      data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer
-        ?.content?.sectionListRenderer?.contents?.[0]
-        ?.musicResponsiveHeaderRenderer;
-
-    if (header) {
-      result.playlist.title =
-        header?.title?.runs?.[0]?.text || "Unknown Playlist";
-
-      const thumbs =
-        header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-      result.playlist.thumbnail = thumbs[thumbs.length - 1]?.url || "";
-
-      result.playlist.subtitle = header?.subtitle?.runs?.map((r) => r.text) || [];
-      result.playlist.secondSubtitle =
-        header?.secondSubtitle?.runs?.map((r) => r.text) || [];
-    }
-
-    // === Playlist Songs Section ===
-    const secondary =
-      data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents
-        ?.sectionListRenderer?.contents?.[0];
-
-    const section =
-      secondary?.musicShelfRenderer || secondary?.musicPlaylistShelfRenderer;
-
-    const items = section?.contents || [];
-
-    result.songs = items
-      .map((item) => {
-        const renderer = item?.musicResponsiveListItemRenderer;
-        if (!renderer) return null;
-
-        // Extract thumbnail
-        const thumbList =
-          renderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-        const thumbnail = thumbList[0]?.url || "";
-
-        // Extract columns
-        const flexCols = renderer?.flexColumns || [];
-        const fixedCols = renderer?.fixedColumns || [];
-
-        const title =
-          flexCols?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
-            ?.text || "Unknown Title";
-
-        const artist =
-          flexCols?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
-            ?.map((r) => r.text)
-            ?.join("") || "Unknown Artist";
-
-        const album =
-          flexCols?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
-            ?.text || null;
-
-        const duration =
-          fixedCols?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]
-            ?.text || null;
-
-        // IDs
-        const overlay =
-          renderer?.overlay?.musicItemThumbnailOverlayRenderer?.content;
-        const watchEndpoint =
-          overlay?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint;
-
-        const videoId = watchEndpoint?.videoId || null;
-        const playlistId = watchEndpoint?.playlistId || null;
-
-        return {
-          videoId,
-          playlistId,
-          title,
-          artist,
-          album,
-          duration,
-          thumbnail,
-        };
-    }).filter(Boolean);
-  } catch (err) {
-    console.error("Error parsing playlist page:", err);
+  if (hasTwoColumn) {
+    return parseTwoColumnBrowseResultsRenderer(data);
+  } else if (hasSingleColumn) {
+    return parseSingleColumnBrowseResultsRenderer(data);
+  } else {
+    console.warn("Unknown browse structure:", Object.keys(data?.contents || {}));
+    return { playlist: {}, songs: [] };
   }
-
-  return result;
 }
 
-export async function getBrowseData(browseId) {
-  const data = await browse(browseId);
-  const parsed = parsePlaylistPage(data);
+
+export async function getBrowseData(browseId, params = null) {
+  const data = await browse(browseId, params);
+  const parsed = parseYouTubeMusic(data);
   return parsed;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import api from "@/lib/axios"; // your configured axios instance
 
-export function usePlaylistData(browseId) {
+export function usePlaylistData(browseId, params) {
   const [data, setData] = useState(null); // playlist page data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +13,10 @@ export function usePlaylistData(browseId) {
 
     async function fetchPlaylistData() {
       try {
-        const res = await api.get(`/browse/${browseId}`); 
+        const url = `/browse?browseId=${browseId}${
+          params ? `&params=${encodeURIComponent(params)}` : ""
+        }`;
+        const res = await api.get(url);
         // backend endpoint like /api/playlist/:browseId
         setData(res.data);
       } catch (err) {
@@ -25,7 +28,7 @@ export function usePlaylistData(browseId) {
     }
 
     fetchPlaylistData();
-  }, [browseId]);
+  }, [browseId, params]);
 
   return { data, loading, error };
 }

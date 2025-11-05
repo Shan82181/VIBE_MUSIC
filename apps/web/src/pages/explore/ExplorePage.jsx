@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import SectionRendrer from "../../components/SectionRendrer";
 import CategoryRenderer from "../../components/CategoryRenderer";
+import { useNavigate } from "react-router-dom";
 
 const ExplorePage = () => {
   const { data, loading, error } = useExploreData();
@@ -18,7 +19,7 @@ const ExplorePage = () => {
   const NewMusicVideos =
     data?.sections?.filter((s) => s.title === "New music videos") || [];
 
-  // console.log(NewMusicVideos);
+  // console.log(MoodsGenres);
   
 
   if (loading)
@@ -49,16 +50,15 @@ export default ExplorePage;
 const NavigationSection = (props) => {
   const { navigation } = props;
   const items = navigation[0]?.items || [];
-  //const browseId = navigation[0]?.browseId || "";
-  //console.log(items);
-  const handleOnClick = (browseId) => {
-    console.log("Navigate to:", browseId);
-  };
+  const navigate = useNavigate();
+  const handleBrowse = (browseId) => {
+    navigate(`/navigation/${browseId}`);
+  }
   return (
     <div className="flex flex-wrap gap-4 justify-center items-center w-full mb-20">
       {items.map((item, index) => (
         <Button
-          onClick={() => handleOnClick(item.browseId)}
+          onClick={() => handleBrowse(item.browseId)}
           key={index}
           className="text-2xl flex-1 min-w-[100px] sm:min-w-[150px] py-6 hover:bg-gray-800 transition-colors"
         >

@@ -2,9 +2,10 @@ import express from 'express';
 import { getBrowseData} from '../services/innertubeService.js';
 const router = express.Router();
 
-router.get("/browse/:browseId", async (req, res) => {
+router.get("/browse", async (req, res) => {
   try {
-    const data = await getBrowseData(req.params.browseId);
+    const { browseId, params } = req.query;
+    const data = await getBrowseData(browseId, params);
     res.json(data);
   } catch (err) {
     console.error("Browse error:", err.message);

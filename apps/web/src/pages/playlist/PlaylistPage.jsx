@@ -1,12 +1,14 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams} from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { usePlaylistData } from "@/hooks/usePlaylistData";
 import { usePlayer } from "@/context/PlayerContext";
 
 const PlaylistPage = () => {
   const { browseId } = useParams();
-  const { data, loading, error } = usePlaylistData(browseId);
+  const [searchParams] = useSearchParams();
+  const params = searchParams.get("params");
+  const { data, loading, error } = usePlaylistData(browseId , params);
   const { playTrack } = usePlayer();
 
   const handleSongClick = (song) => {
@@ -69,7 +71,7 @@ const PlaylistPage = () => {
             <p className="text-gray-400 w-6 text-right">{index + 1}</p>
 
             <img
-              src={song.thumbnail}
+              src={song.thumbnail || null}
               alt={song.title}
               className="w-12 h-12 rounded-md object-cover"
             />

@@ -1,11 +1,14 @@
-import { useHomeData } from "../../hooks/useHomeData";
+import React from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { usePlaylistData } from "@/hooks/usePlaylistData";
 import SectionRendrer from "../../components/SectionRendrer";
-
-export default function HomePage() {
-  const { data, loading, error } = useHomeData();
+const CategoryPage = () => {
+  const { browseId } = useParams();
+  const [searchParams] = useSearchParams();
+  const params = searchParams.get("params");
+  const { data, loading, error } = usePlaylistData(browseId, params);
   const sections = data?.sections || [];
-
   if (loading)
     return (
       <div className="flex justify-center items-center h-screen text-white">
@@ -19,16 +22,18 @@ export default function HomePage() {
         Failed to load: {error}
       </div>
     );
-
   return (
     <div className="px-13 py-8 h-full overflow-y-auto no-scrollbar bg-black text-white">
       {sections.map((section, index) => (
+        // Default renderer for all other sections
         <SectionRendrer
-          key={index} 
+          key={index}
           MainTitle={section.title}
           items={section.items}
         />
       ))}
     </div>
   );
-}
+};
+
+export default CategoryPage;
