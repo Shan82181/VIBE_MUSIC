@@ -6,6 +6,7 @@ import {
 import { Outlet } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import Sidebar from "../components/Sidebar";
+import GlobalPlayerBar from "@/components/GlobalPlayerBar";
 const MainLayout = () => {
   return (
     <div className="flex flex-col h-screen">
@@ -18,6 +19,7 @@ const MainLayout = () => {
         <ResizableHandle className="w-1 bg-gray-700 hover:bg-gray-500 cursor-col-resize" />
         <ResizablePanel minSize={50} defaultSize={80} className="bg-gray-900">
           <Outlet />
+          <GlobalPlayerBar /> 
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

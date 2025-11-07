@@ -7,7 +7,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
-import { usePlayer } from "@/context/PlayerContext";
+//import { usePlayer } from "@/context/PlayerContext";
+import { usePlayerStore } from "@/store/usePlayerStore"; // ✅ new
 import { useNavigate } from "react-router-dom";
 
 const SectionRendrer = (props) => {
@@ -20,21 +21,25 @@ const SectionRendrer = (props) => {
     );
   };
   const { MainTitle, items } = props;
-  const { playTrack } = usePlayer();
-  const handleItemClick = (item) => {
-    if (item.type === "song" && item.videoId) {
-      playTrack(item);
-    } else if (
-      (item.type === "playlist" ||
-        item.type === "category" ||
-        item.type === "album") &&
-      item.browseId
-    ) {
-      handleBrowse(item.browseId, item.params);
+  //const { playTrack } = usePlayer();
+  const { playTrack, currentTrack, isPlaying, togglePlay } = usePlayerStore();
+ const handleItemClick = (item) => {
+  if (item.type === "song" && item.videoId) {
+    if (currentTrack?.videoId === item.videoId) {
+      togglePlay(); // pause/resume if same song
     } else {
-      console.warn("Unknown item type:", item);
+      playTrack(item);
     }
-  };
+  } else if (
+    ["playlist", "category", "album"].includes(item.type) &&
+    item.browseId
+  ) {
+    handleBrowse(item.browseId, item.params);
+  } else {
+    console.warn("Unknown item type:", item);
+  }
+};
+
   if (!items || items.length === 0) return null;
   return (
     <div className="mb-10">

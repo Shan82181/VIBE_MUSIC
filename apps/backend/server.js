@@ -39,10 +39,6 @@ app.use("/api/user", userRoutes);
 //app.use("/api/liked-songs", likedSongRoutes);
 //app.use("/api/playlists", playlistRoutes);
 //app.use("/api/music", musicRoutes);
-app.get("/api/protected", requireAuth(), (req, res) => {
-  const { userId } = getAuth(req);
-  res.json({ message: "Hello, user!", userId });
-});
 app.use('/api',requireAuth(), apiRoutes);
 app.use('/api', syncUser);
 app.use('/api', requireAuth(), HomePageData);

@@ -2,14 +2,14 @@ import React from "react";
 import { useParams, useSearchParams} from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { usePlaylistData } from "@/hooks/usePlaylistData";
-import { usePlayer } from "@/context/PlayerContext";
+import { usePlayerStore } from "@/store/usePlayerStore"; 
 
 const PlaylistPage = () => {
   const { browseId } = useParams();
   const [searchParams] = useSearchParams();
   const params = searchParams.get("params");
   const { data, loading, error } = usePlaylistData(browseId , params);
-  const { playTrack } = usePlayer();
+   const { playTrack} = usePlayerStore();
 
   const handleSongClick = (song) => {
     playTrack(song);
