@@ -1,5 +1,6 @@
 import React from "react";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import LikeButton from "./LikedButton";
 
 export default function GlobalPlayerBar() {
   const { currentTrack, isPlaying, progress, togglePlay } = usePlayerStore();
@@ -76,6 +77,7 @@ export default function GlobalPlayerBar() {
         <div className="w-1/3 flex justify-end gap-4 text-gray-400">
           <button className="hover:text-white">🔊</button>
           <button className="hover:text-white">⋯</button>
+          <LikeButton song={currentTrack} />
         </div>
       </div>
     </div>

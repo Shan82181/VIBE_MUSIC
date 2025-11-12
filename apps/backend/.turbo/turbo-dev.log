@@ -7,15 +7,42 @@
 [33m[nodemon] watching path(s): *.*[39m
 [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
 [32m[nodemon] starting `node server.js`[39m
-[dotenv@17.2.2] injecting env (7) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.2] injecting env (7) from .env -- tip: ⚙️  enable debug logging with { debug: true }
 ✅ MongoDB connected
 ✅ Server is running on PORT 3000
 ✅ User synced: shantanupal229@gmail.com
 ✅ User synced: shantanupal229@gmail.com
-✅ User synced: shantanupal229@gmail.com
-✅ User synced: shantanupal229@gmail.com
-✅ User synced: shantanupal229@gmail.com
-✅ User synced: shantanupal229@gmail.com
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node server.js`[39m
-[dotenv@17.2.2] injecting env (7) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\CODING\WEB DEVELOPMENT\Cohort\Projects\VIBE\apps\backend\src\model\likedSongs.model.js' imported from C:\CODING\WEB DEVELOPMENT\Cohort\Projects\VIBE\apps\backend\src\routes\likedsong.route.js
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:860:10)
+    at defaultResolve (node:internal/modules/esm/resolve:984:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:685:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:634:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:617:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:273:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:135:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/CODING/WEB%20DEVELOPMENT/Cohort/Projects/VIBE/apps/backend/src/model/likedSongs.model.js'
+}
+
+Node.js v22.14.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[dotenv@17.2.2] injecting env (7) from .env -- tip: 📡 auto-backup env with Radar: https://dotenvx.com/radar
+✅ MongoDB connected
+✅ Server is running on PORT 3000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[dotenv@17.2.2] injecting env (7) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+✅ MongoDB connected
+✅ Server is running on PORT 3000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[dotenv@17.2.2] injecting env (7) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit

@@ -1,32 +1,51 @@
-import LikedSong from "../models/likedsong.model.js";
+import express from "express";
+import LikedSong from "../model/likedSongs.model.js";
 
-export const likeSong = async (req, res) => {
+const router = express.Router();
+
+router.post("/liked", async (req, res) => {
   try {
-    const exists = await LikedSong.findOne({ userId: req.user.sub, videoId: req.body.videoId });
-    if (exists) return res.status(400).json({ error: "Already liked" });
+    const { userId, videoId, title, thumbnail , duration , artist} = req.body;
+    // Like (add new record)
+    const newLike = new LikedSong({
+      userId,
+      videoId,
+      title,
+      thumbnail,
+      duration,
+      artist
+    });
 
-    const song = new LikedSong({ userId: req.user.sub, ...req.body });
-    await song.save();
-    res.json(song);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    await newLike.save();
+    res.json({ liked: true, song: newLike });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-};
+});
 
-export const getLikedSongs = async (req, res) => {
+router.post("/unliked", async (req, res) => {
   try {
-    const songs = await LikedSong.find({ userId: req.user.sub }).sort({ createdAt: -1 });
-    res.json(songs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { userId, videoId } = req.body;
+    const deleted = await LikedSong.findOneAndDelete({ userId, videoId });
+    if (deleted) {
+      res.json({ liked: false, song: deleted });
+    } else {
+      res.status(404).json({ message: "Liked song not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-};
-
-export const unlikeSong = async (req, res) => {
+});
+router.get("/:userId", async (req, res) => {
   try {
-    await LikedSong.findOneAndDelete({ userId: req.user.sub, videoId: req.params.videoId });
-    res.json({ message: "Song unliked" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { userId } = req.params;
+    const likedSongs = await LikedSong.find({ userId });
+    res.json({ likedSongs });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-};
+});
+
+export default router;

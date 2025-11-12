@@ -44,8 +44,8 @@ const PlaylistPage = () => {
       <div className="flex-shrink-0 p-8 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
           <img
-            src={playlist.thumbnail}
-            alt={playlist.title}
+            src={playlist?.thumbnail || ""}
+            alt={playlist?.title || ""}
             className="rounded-2xl w-48 h-48 object-cover shadow-md"
           />
           <div>
