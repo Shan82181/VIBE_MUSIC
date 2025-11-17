@@ -7,7 +7,7 @@ import CategoryRenderer from "../../components/CategoryRenderer";
 import { useNavigate } from "react-router-dom";
 
 const ExplorePage = () => {
-  const { data, loading, error } = useExploreData();
+  const { data, isLoading, error , isError} = useExploreData();
   const Navigation =
     data?.sections?.filter((s) => s.title === "Navigation") || [];
 
@@ -22,14 +22,14 @@ const ExplorePage = () => {
   // console.log(MoodsGenres);
   
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="flex justify-center items-center h-screen  text-white">
         <Loader2 className="animate-spin mr-2" /> Loading...
       </div>
     );
 
-  if (error)
+  if (isError)
     return (
       <div className="text-center text-red-500 mt-10">
         Failed to load: {error}

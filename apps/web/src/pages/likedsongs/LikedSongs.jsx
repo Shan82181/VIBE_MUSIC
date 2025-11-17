@@ -1,30 +1,48 @@
 import React from "react";
 import { useLikedSongData } from "../../hooks/useLikedSongsData";
-import { usePlayerStore } from "@/store/usePlayerStore"; 
+import { usePlayerStore } from "@/store/usePlayerStore";
+import { Loader2 } from "lucide-react";
 
 const LikedSongs = () => {
-  const { data, loading, error } = useLikedSongData();
-  const songs = data?.likedSongs || [];
-  const { playTrack} = usePlayerStore();
+  const { data, isLoading, isError, error } = useLikedSongData();
+
+  // Correct shape: data is an ARRAY
+  const songs = data || [];
+
+  const { playTrack } = usePlayerStore();
   const handleSongClick = (song) => {
     playTrack(song);
   };
-  //console.log("Liked Songs Data:", songs);
+  // console.log("Liked Songs Data:", songs);
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen text-white">
+        <Loader2 className="animate-spin mr-2" /> Loading...
+      </div>
+    );
+
+  if (isError)
+    return (
+      <div className="text-center text-red-500 mt-10">
+        Failed to load: {error}
+      </div>
+    );
   return (
     <div className="flex flex-col h-screen bg-black text-white pb-15">
       {/* ✅ Header (fixed height, no scroll) */}
       <div className="flex-shrink-0 p-8 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
           <img
-            src={"https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-songs-delhi-1200.png"|| ""}
-            alt={"Liked Song"|| ""}
+            src={
+              "https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-songs-delhi-1200.png" ||
+              ""
+            }
+            alt={"Liked Song" || ""}
             className="rounded-2xl w-48 h-48 object-cover shadow-md"
           />
           <div>
             <h1 className="text-3xl font-bold">Liked Songs</h1>
-            <p className="text-gray-400 mt-2">
-              Auto Playlist . 2025
-            </p>
+            <p className="text-gray-400 mt-2">Auto Playlist . 2025</p>
           </div>
         </div>
       </div>
@@ -55,7 +73,7 @@ const LikedSongs = () => {
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LikedSongs
+export default LikedSongs;

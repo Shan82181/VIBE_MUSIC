@@ -3,11 +3,9 @@ import mongoose from "mongoose";
 const SongSchema = new mongoose.Schema({
   videoId: { type: String, required: true },
   title: { type: String, required: true },
-  artists: [String],
+  artists: String,
   thumbnail: String,
   duration: String,
-  albumId: String,
-  albumName: String
 });
 
 const PlaylistSchema = new mongoose.Schema(

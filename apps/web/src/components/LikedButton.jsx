@@ -1,52 +1,47 @@
-import api from "@/lib/axios";
-import { Heart } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/clerk-react";
-import { useLikedSongData } from "../hooks/useLikedSongsData";
+import { Heart } from "lucide-react";
+import api from "@/lib/axios";
+
 const LikedButton = ({ song }) => {
-  const { data } = useLikedSongData();
   const { user } = useUser();
-  const [liked, setLiked] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (data?.likedSongs) {
-      setLiked(data.likedSongs.some(item => item.videoId === song.videoId));
-    }
-  }, [data, song]);
+  // ⭐ Read global cache only — NO API CALL here
+  const likedSongs = queryClient.getQueryData(["likedSongs", user?.id]) || [];
 
-  const onClick = async () => {
-    if (!user) return;
+  const liked = likedSongs.some(item => item.videoId === song.videoId);
 
-    try {
-      if (liked) {
-        // unlike
-        await api.post("/unliked", { userId: user.id, videoId: song.videoId });
-        setLiked(false);
-      } else {
-        // like
-        await api.post("/liked", {
-          userId: user.id,
-          videoId: song.videoId,
-          title: song.title,
-          thumbnail: song.thumbnail,
-          duration: song.duration,
-          artist: song.artist
-        });
-        setLiked(true);
-      }
-    } catch (err) {
-      console.error("Error toggling like:", err);
-    }
-  };
+  const likeMutation = useMutation({
+    mutationFn: () => api.post("/liked", {
+      userId: user.id,
+      videoId: song.videoId,
+      title: song.title,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+      artist: song.artist
+    }),
+    onSuccess: () => queryClient.invalidateQueries(["likedSongs", user.id])
+  });
+
+  const unlikeMutation = useMutation({
+    mutationFn: () => api.post("/unliked", {
+      userId: user.id,
+      videoId: song.videoId
+    }),
+    onSuccess: () => queryClient.invalidateQueries(["likedSongs", user.id])
+  });
 
   return (
-    <button onClick={onClick}>
+    <button onClick={() => liked ? unlikeMutation.mutate() : likeMutation.mutate()}>
       <Heart
-        className={`w-6 h-6 transition-colors duration-150 ${
+        className={`w-6 h-6 transition duration-150 ${
           liked ? "text-red-500 fill-red-500" : "text-gray-400"
         }`}
       />
     </button>
   );
 };
+
+
 export default LikedButton;

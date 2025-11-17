@@ -2,10 +2,17 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
-import { ClerkProvider } from "@clerk/clerk-react";
+import { ClerkProvider, ClerkLoaded, ClerkLoading } from "@clerk/clerk-react";
 import { BrowserRouter } from "react-router-dom";
 import AuthProvider from "./provider/authProvider.jsx";
-// Import your Publishable Key
+import { ToastContainer } from "react-toastify";
+
+// ⭐ React Query Imports
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+
+// Clerk Key
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -15,11 +22,30 @@ if (!PUBLISHABLE_KEY) {
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <AuthProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </AuthProvider>
+      <ClerkLoaded>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+              <App />
+              <ToastContainer
+                position="bottom-right"
+                autoClose={2800}
+                theme="dark"
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                pauseOnHover
+              />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </AuthProvider>
+      </ClerkLoaded>
+
+      <ClerkLoading>
+        <div className="text-white flex justify-center h-screen items-center">
+          Loading Auth...
+        </div>
+      </ClerkLoading>
     </ClerkProvider>
   </StrictMode>
 );

@@ -8,21 +8,21 @@ const PlaylistPage = () => {
   const { browseId } = useParams();
   const [searchParams] = useSearchParams();
   const params = searchParams.get("params");
-  const { data, loading, error } = usePlaylistData(browseId , params);
+  const { data, isLoading, isError, error } = usePlaylistData(browseId, params);
    const { playTrack} = usePlayerStore();
 
   const handleSongClick = (song) => {
     playTrack(song);
   };
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="flex justify-center items-center h-screen text-white">
         <Loader2 className="animate-spin mr-2" /> Loading playlist...
       </div>
     );
 
-  if (error)
+  if (isError)
     return (
       <div className="text-center text-red-500 mt-10">
         Failed to load playlist: {error}

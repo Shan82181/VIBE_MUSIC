@@ -1,32 +1,36 @@
-import { useEffect, useState , useRef} from "react";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import { useUser} from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
+import { toast } from "react-toastify";
+
 export function useLikedSongData() {
-  const [data, setData] = useState();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const fetchedRef = useRef(false); 
-  const { user } = useUser();
-  useEffect(() => {
-  if (!user) return; // wait for user to be available
-  if (fetchedRef.current) return; // already fetched
-  
-  fetchedRef.current = true;
-  
-  async function fetchData() {
-    try {
-      const res = await api.get(`/${user.id}`);
-      setData(res.data);
-    } catch (err) {
-      setError(err.message || "Failed to load liked songs");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { user, isLoaded } = useUser();
 
-  fetchData();
-}, [user]);
+  return useQuery({
+    queryKey: ["likedSongs", user?.id],
+    enabled: isLoaded && !!user?.id,
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/liked/${user.id}`);
+        console.log("🔥 API RESPONSE DATA:", res.data);
 
+        // Backend returns: { likedSongs: [...] }
+        const likedSongs = res.data?.likedSongs;
 
-  return { data, loading, error };
+        if (!Array.isArray(likedSongs)) {
+          toast.error("Invalid liked songs response.");
+          return [];
+        }
+
+        return likedSongs;
+
+      } catch (err) {
+        console.log("🔥 ERROR FROM API:", err?.response?.data);
+        toast.error("Unable to fetch liked songs.");
+        return [];
+      }
+    },
+
+    staleTime: 1000 * 60 * 5,
+  });
 }

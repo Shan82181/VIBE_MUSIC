@@ -38,7 +38,7 @@ router.post("/unliked", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-router.get("/:userId", async (req, res) => {
+router.get("/liked/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const likedSongs = await LikedSong.find({ userId });

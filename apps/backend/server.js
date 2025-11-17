@@ -11,7 +11,7 @@ import connectDB from "./src/lib/db.js";
 import authRoutes from "./src/routes/auth.route.js";
 //import adminRoutes from "./src/routes/admin.route.js";
 //import musicRoutes from "./src/routes/music.route.js";
-//import playlistRoutes from "./src/routes/playlist.route.js";
+import playlistRoutes from "./src/routes/playlist.route.js";
 import likedSongRoutes from "./src/routes/likedsong.route.js";
 import userRoutes from "./src/routes/user.routes.js";
 import apiRoutes from './src/routes/api.js';
@@ -29,7 +29,11 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-//app.use("/api", likedSongRoutes);
+//<-- Test Endpoint -->
+app.get("/", (req, res) => {
+  res.send("✅ Backend server is running!");
+});
+app.use("/api", likedSongRoutes);
 app.use(clerkMiddleware());
 
 //<-- API Endpoints -->
@@ -38,18 +42,17 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 //app.use("/api/music", musicRoutes);
 //app.use("/api/liked-songs", likedSongRoutes);
-//app.use("/api/playlists", playlistRoutes);
+//
 //app.use("/api/music", musicRoutes);
 app.use('/api',requireAuth(), apiRoutes);
 app.use('/api', syncUser);
 app.use('/api', requireAuth(), HomePageData);
 app.use('/api', requireAuth(), ExplorePageData);
 app.use('/api', requireAuth(), BrowsePageData);
-app.use("/api", likedSongRoutes);
-//<-- Test Endpoint -->
-// app.get("/", (req, res) => {
-//   res.send("✅ Backend server is running!");
-// });
+// app.use("/api", requireAuth(), likedSongRoutes);
+app.use("/api/playlists",requireAuth(), playlistRoutes);
+
+
 
 
 

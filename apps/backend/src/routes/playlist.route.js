@@ -1,29 +1,19 @@
-// Playlist CRUD + add/remove songs (user-owned)
+// routes/playlist.routes.js
 import express from "express";
-import { verifyClerkJWT, attachUser } from "../middlewares/auth.middleware.js";
 import {
   createPlaylist,
-  getUserPlaylists,
   addSongToPlaylist,
   removeSongFromPlaylist,
-  deletePlaylist
+  getUserPlaylists,
+  deletePlaylist,
 } from "../controllers/playlist.controller.js";
 
 const router = express.Router();
 
-// Create playlist
-router.post("/", verifyClerkJWT, attachUser, createPlaylist);
-
-// Get playlists for current user
-router.get("/", verifyClerkJWT, attachUser, getUserPlaylists);
-
-// Add a song to a playlist (body: song metadata)
-router.post("/:playlistId/songs", verifyClerkJWT, attachUser, addSongToPlaylist);
-
-// Remove a song from a playlist
-router.delete("/:playlistId/songs/:songId", verifyClerkJWT, attachUser, removeSongFromPlaylist);
-
-// Delete a playlist
-router.delete("/:playlistId", verifyClerkJWT, attachUser, deletePlaylist);
+router.post("/", createPlaylist);
+router.post("/:id/add", addSongToPlaylist);
+router.delete("/:id/remove/:videoId", removeSongFromPlaylist);
+router.get("/user/:userId", getUserPlaylists);
+router.delete("/:id", deletePlaylist);
 
 export default router;

@@ -1,34 +1,19 @@
-import { useEffect, useState, useRef } from "react";
-import api from "@/lib/axios"; // your configured axios instance
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/axios";
 
 export function usePlaylistData(browseId, params) {
-  const [data, setData] = useState(null); // playlist page data
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const fetchedRef = useRef(false);
+  return useQuery({
+    queryKey: ["playlist", browseId, params], // 🔥 unique cache per playlist
+    queryFn: async () => {
+      const url = `/browse?browseId=${browseId}${
+        params ? `&params=${encodeURIComponent(params)}` : ""
+      }`;
 
-  useEffect(() => {
-    if (!browseId || fetchedRef.current) return;
-    fetchedRef.current = true;
+      const res = await api.get(url);
+      return res.data; // ✔️ correct
+    },
 
-    async function fetchPlaylistData() {
-      try {
-        const url = `/browse?browseId=${browseId}${
-          params ? `&params=${encodeURIComponent(params)}` : ""
-        }`;
-        const res = await api.get(url);
-        // backend endpoint like /api/playlist/:browseId
-        setData(res.data);
-      } catch (err) {
-        console.error("Failed to load playlist:", err);
-        setError(err.message || "Failed to load playlist data");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchPlaylistData();
-  }, [browseId, params]);
-
-  return { data, loading, error };
+    enabled: Boolean(browseId), // prevents empty calls
+    staleTime: 1000 * 60 * 5,   // optional: 5 min cache
+  });
 }
