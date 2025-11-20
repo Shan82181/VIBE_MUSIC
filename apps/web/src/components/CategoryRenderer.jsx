@@ -1,33 +1,42 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-const CategoryRenderer = (props) => {
-  const { MainTitle, items } = props;
+
+const CategoryRenderer = React.memo(({ MainTitle = "", items = [] }) => {
   const navigate = useNavigate();
-    const handleBrowse = (browseId, params) => {
-      navigate(`/category/${browseId}${
-        params ? `?params=${encodeURIComponent(params)}` : ""
-      }`);
-    }
+
+  const handleBrowse = useCallback(
+    (browseId, params) => {
+      navigate(
+        `/category/${browseId}${params ? `?params=${encodeURIComponent(params)}` : ""}`
+      );
+    },
+    [navigate]
+  );
+
+  if (!items.length) return null;
+
   return (
     <div className="mb-10">
-  <h2 className="text-2xl font-semibold mb-4 text-white">{MainTitle}</h2>
+      <h2 className="text-2xl font-semibold mb-4 text-white">{MainTitle}</h2>
 
-  <div className="grid grid-flow-col auto-cols-[160px] grid-rows-4 overflow-x-scroll gap-3">
-    {items.map((item, index) => (
-      <Button
-        key={index}
-        onClick={() => handleBrowse(item.browseId, item.params)}
-        className="w-full h-full bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium 
-                   rounded-xl flex items-start justify-start text-left px-4 py-3 transition-all"
-      >
-        {item.title}
-      </Button>
-    ))}
-  </div>
-</div>
-
+      {/* 4-row horizontal scroll grid */}
+      <div className="grid grid-flow-col auto-cols-[160px] grid-rows-4 overflow-x-scroll gap-3 no-scrollbar">
+        {items.map((item, index) => (
+          <Button
+            key={index}
+            onClick={() => handleBrowse(item.browseId, item.params)}
+            className="w-full h-full bg-neutral-900 hover:bg-neutral-800 
+                       text-white text-sm font-medium rounded-xl 
+                       flex items-start justify-start text-left px-4 py-3
+                       transition-all"
+          >
+            {item.title}
+          </Button>
+        ))}
+      </div>
+    </div>
   );
-};
+});
 
 export default CategoryRenderer;

@@ -1,5 +1,5 @@
 // src/components/userPlaylist/AddToPlaylistModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +11,22 @@ import { Button } from "@/components/ui/button";
 import { CreatePlaylistModal } from "./CreatePlaylistModal";
 import { useUserPlaylistMutations } from "../../hooks/useUserPlaylistMutations";
 
-
-const AddToPlaylistModal = ({ open, onClose, playlists, song, onAddSong ,userId }) => {
+const AddToPlaylistModal = ({
+  open,
+  onClose,
+  playlists,
+  refetchPlaylists,
+  song,
+  onAddSong,
+  userId,
+}) => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { createPlaylist } = useUserPlaylistMutations(userId);
+  useEffect(() => {
+    if (open && typeof refetchPlaylists === "function") {
+      refetchPlaylists();
+    }
+  }, [open]);
   const handleCreatePlaylist = async (data) => {
     const newPlaylist = await createPlaylist(data);
     // After creating → auto add the song
@@ -33,16 +45,20 @@ const AddToPlaylistModal = ({ open, onClose, playlists, song, onAddSong ,userId 
           </DialogHeader>
 
           <div className="space-y-2 mt-2">
-            {playlists?.map((p) => (
-              <Button
-                key={p._id}
-                variant="ghost"
-                className="w-full justify-start hover:bg-neutral-800"
-                onClick={() => onAddSong(p._id, song)}
-              >
-                {p.name}
-              </Button>
-            ))}
+            {Array.isArray(playlists) ? (
+              playlists.map((p) => (
+                <Button
+                  key={p._id}
+                  variant="ghost"
+                  className="w-full justify-start hover:bg-neutral-800"
+                  onClick={() => onAddSong(p._id, song)}
+                >
+                  {p.name}
+                </Button>
+              ))
+            ) : (
+              <p className="text-gray-400 text-sm">No playlists available.</p>
+            )}
           </div>
 
           <div className="border-t border-neutral-700 mt-3 pt-3">

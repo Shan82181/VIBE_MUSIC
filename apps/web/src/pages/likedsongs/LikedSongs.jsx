@@ -52,7 +52,7 @@ const LikedSongs = () => {
         {songs.map((song, index) => (
           <div
             onClick={() => handleSongClick(song)}
-            key={song.videoId || index}
+            key={index}
             className="flex items-center gap-4 py-3 px-2 hover:bg-gray-900 rounded-lg cursor-pointer transition-colors"
           >
             <p className="text-gray-400 w-6 text-right">{index + 1}</p>

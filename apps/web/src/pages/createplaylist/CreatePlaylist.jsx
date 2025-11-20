@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Plus, Music2 } from "lucide-react";
 import { CreatePlaylistModal } from "../../components/userPlaylist/CreatePlaylistModal";
 import { useUserPlaylists } from "../../hooks/useUserPlaylist";
+import { Loader2 } from "lucide-react";
 
 const CreatePlaylist = () => {
   const { user ,isLoaded } = useUser();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // ⬇ React Query hook
-  const { data: playlists = [] , isLoading , isError} =
+  const { data: playlists = [] , isLoading , isError , refetch} =
     useUserPlaylists(isLoaded ? user.id : null);
 
   // 🟡 Loading State
@@ -23,11 +24,25 @@ const CreatePlaylist = () => {
 
   // 🔴 Error State (won't break UI)
   if (isError)
-    return (
-      <div className="flex justify-center items-center h-screen text-red-400">
-        Failed to load playlists 😔
-      </div>
-    );
+  return (
+    <div className="flex flex-col justify-center items-center h-screen text-red-400">
+      <p className="mb-4">Failed to load playlists 😔</p>
+      <Button
+        onClick={() => refetch()}
+        className="bg-white text-black hover:bg-gray-200 flex items-center gap-2"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Retrying...
+          </>
+        ) : (
+          "Try Again"
+        )}
+      </Button>
+    </div>
+  );
+
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white p-6">

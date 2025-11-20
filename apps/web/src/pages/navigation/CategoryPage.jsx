@@ -2,7 +2,7 @@ import React from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { usePlaylistData } from "@/hooks/usePlaylistData";
-import SectionRendrer from "../../components/SectionRendrer";
+import SectionRendrer from "../../components/SectionRenderer";
 const CategoryPage = () => {
   const { browseId } = useParams();
   const [searchParams] = useSearchParams();

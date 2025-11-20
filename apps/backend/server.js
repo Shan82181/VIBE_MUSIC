@@ -30,10 +30,10 @@ app.use(cors({
 }));
 app.use(express.json());
 //<-- Test Endpoint -->
-app.get("/", (req, res) => {
-  res.send("✅ Backend server is running!");
-});
-app.use("/api", likedSongRoutes);
+// app.get("/", (req, res) => {
+//   res.send("✅ Backend server is running!");
+// });
+// app.use("/api", likedSongRoutes);
 app.use(clerkMiddleware());
 
 //<-- API Endpoints -->
@@ -49,7 +49,7 @@ app.use('/api', syncUser);
 app.use('/api', requireAuth(), HomePageData);
 app.use('/api', requireAuth(), ExplorePageData);
 app.use('/api', requireAuth(), BrowsePageData);
-// app.use("/api", requireAuth(), likedSongRoutes);
+app.use("/api", requireAuth(), likedSongRoutes);
 app.use("/api/playlists",requireAuth(), playlistRoutes);
 
 

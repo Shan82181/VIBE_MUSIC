@@ -3,17 +3,17 @@ import api from "@/lib/axios";
 
 export function usePlaylistData(browseId, params) {
   return useQuery({
-    queryKey: ["playlist", browseId, params], // 🔥 unique cache per playlist
+    queryKey: ["playlist", browseId, params],
     queryFn: async () => {
       const url = `/browse?browseId=${browseId}${
         params ? `&params=${encodeURIComponent(params)}` : ""
       }`;
 
       const res = await api.get(url);
-      return res.data; // ✔️ correct
+      return res.data;
     },
 
-    enabled: Boolean(browseId), // prevents empty calls
-    staleTime: 1000 * 60 * 5,   // optional: 5 min cache
+    enabled: Boolean(browseId),
+    staleTime: 1000 * 60 * 5,
   });
 }
