@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import LikeButtonErrorBoundary from "./ErrorBoundary/LikeButtonErrorBoundary.jsx";
 import { useLikedSongData } from "@/hooks/useLikedSongsData.js";
+import { Slider } from "@/components/ui/slider";
 
 export default function GlobalPlayerBar() {
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -116,12 +117,23 @@ export default function GlobalPlayerBar() {
             </button>
           </div>
 
-          <div className="w-full bg-gray-600 rounded-full h-1">
+          {/* <div className="w-full bg-gray-600 rounded-full h-1">
             <div
               className="bg-[#1DB954] h-1 rounded-full transition-all duration-150"
               style={{ width: `${progress}%` }}
             ></div>
-          </div>
+          </div> */}
+          <Slider
+            value={[progress]}
+            max={100}
+            step={0.1}
+            onValueChange={(val) => {
+              usePlayerStore.getState().seekTo(val[0]);
+            }}
+            className="w-full cursor-pointer"
+            trackClassName="bg-gray-700" // slider background
+            rangeClassName="bg-[#1DB954]" // filled part (Spotify green)
+          />
         </div>
 
         {/* RIGHT SIDE */}

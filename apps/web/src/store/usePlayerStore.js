@@ -51,6 +51,14 @@ export const usePlayerStore = create((set, get) => ({
     set({ progress: (audio.currentTime / audio.duration) * 100 || 0 });
   },
 
+  seekTo: (percent) => {
+    const { audio } = get();
+    if (!audio.duration) return;
+
+    const newTime = (percent / 100) * audio.duration;
+    audio.currentTime = newTime;
+  },
+
   reset: () => {
     // Replace with fresh audio object (Spotify style)
     const freshAudio = new Audio();
