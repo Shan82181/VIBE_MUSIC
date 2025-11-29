@@ -40,17 +40,16 @@ export function useSyncUser() {
 
 export default function App() {
   useSyncUser();
-  const { audio, updateProgress } = usePlayerStore(); // ✅ get audio instance
+  const { audio, updateProgress,  handleEnded } = usePlayerStore(); // ✅ get audio instance
 
   useEffect(() => {
     // Attach listeners ONCE
     audio.addEventListener("timeupdate", updateProgress);
-    audio.addEventListener("ended", () => {
-      usePlayerStore.setState({ isPlaying: false, progress: 0 });
-    });
+    audio.addEventListener("ended", handleEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("ended", handleEnded);
     };
   }, [audio, updateProgress]);
 
