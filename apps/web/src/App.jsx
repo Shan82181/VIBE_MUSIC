@@ -14,6 +14,7 @@ import PlaylistPage from "./pages/playlist/PlaylistPage.jsx";
 import NavigationPage from "./pages/navigation/NavigationPage.jsx";
 import CategoryPage from "./pages/navigation/CategoryPage.jsx";
 import { usePlayerStore } from "@/store/usePlayerStore"; // ✅ new
+import PlaylistDetails from "./pages/createplaylist/PlaylistDetails.jsx";
 
 export function useSyncUser() {
   const { user, isSignedIn } = useUser();
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/likedsongs" element={<LikedSongs />} />
             <Route path="/createplaylist" element={<CreatePlaylist />} />
             <Route path="/playlist/:browseId" element={<PlaylistPage />} />
+            <Route path="/userplaylist/:id" element={<PlaylistDetails />} />
             <Route path="/navigation/:browseId" element={<NavigationPage />} />
             <Route path="/category/:browseId" element={<CategoryPage />} />
           </Route>

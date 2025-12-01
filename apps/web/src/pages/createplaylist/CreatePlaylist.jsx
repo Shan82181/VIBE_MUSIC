@@ -5,14 +5,21 @@ import { Plus, Music2 } from "lucide-react";
 import { CreatePlaylistModal } from "../../components/userPlaylist/CreatePlaylistModal";
 import { useUserPlaylists } from "../../hooks/useUserPlaylist";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const CreatePlaylist = () => {
-  const { user ,isLoaded } = useUser();
+  const { user, isLoaded } = useUser();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  const navigate = useNavigate();
+
   // ⬇ React Query hook
-  const { data: playlists = [] , isLoading , isError , refetch} =
-    useUserPlaylists(isLoaded ? user.id : null);
+  const {
+    data: playlists = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useUserPlaylists(isLoaded ? user.id : null);
 
   // 🟡 Loading State
   if (isLoading)
@@ -24,25 +31,24 @@ const CreatePlaylist = () => {
 
   // 🔴 Error State (won't break UI)
   if (isError)
-  return (
-    <div className="flex flex-col justify-center items-center h-screen text-red-400">
-      <p className="mb-4">Failed to load playlists 😔</p>
-      <Button
-        onClick={() => refetch()}
-        className="bg-white text-black hover:bg-gray-200 flex items-center gap-2"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Retrying...
-          </>
-        ) : (
-          "Try Again"
-        )}
-      </Button>
-    </div>
-  );
-
+    return (
+      <div className="flex flex-col justify-center items-center h-screen text-red-400">
+        <p className="mb-4">Failed to load playlists 😔</p>
+        <Button
+          onClick={() => refetch()}
+          className="bg-white text-black hover:bg-gray-200 flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Retrying...
+            </>
+          ) : (
+            "Try Again"
+          )}
+        </Button>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white p-6">
@@ -70,14 +76,19 @@ const CreatePlaylist = () => {
           {playlists.map((playlist) => (
             <div
               key={playlist._id}
+              onClick={() => navigate(`/userplaylist/${playlist._id}`)}
               className="bg-neutral-900 p-4 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
             >
-              {playlist.coverImage ? (
-                <img
-                  src={playlist.coverImage}
-                  alt={playlist.name}
-                  className="w-full h-36 object-cover rounded-md mb-3"
-                />
+              {playlist.songs.slice(0, 4).map((song) => song.thumbnail) ? (
+                <div className="grid grid-cols-2 grid-rows-2 w-40 h-40 overflow-hidden rounded-lg">
+                  {playlist.songs.slice(0, 4).map((song) => song.thumbnail).map((t, i) => (
+                    <img
+                      key={i}
+                      src={t}
+                      className="w-full h-full object-cover"
+                    />
+                  ))}
+                </div>
               ) : (
                 <div className="w-full h-36 bg-neutral-700 rounded-md flex items-center justify-center mb-3">
                   <Music2 className="w-8 h-8 text-gray-300" />

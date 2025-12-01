@@ -34,6 +34,7 @@ app.use(express.json());
 //   res.send("✅ Backend server is running!");
 // });
 // app.use("/api", likedSongRoutes);
+// app.use("/api/playlists",requireAuth(), playlistRoutes);
 app.use(clerkMiddleware());
 
 //<-- API Endpoints -->
