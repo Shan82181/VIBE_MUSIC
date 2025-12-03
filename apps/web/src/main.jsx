@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./App.jsx";
 import { ClerkProvider, ClerkLoaded, ClerkLoading } from "@clerk/clerk-react";
 import { BrowserRouter } from "react-router-dom";
-import AuthProvider from "./provider/authProvider.jsx";
+import AuthProvider from "./provider/AuthProvider.jsx";
 import { ToastContainer } from "react-toastify";
 
 // ⭐ React Query Imports

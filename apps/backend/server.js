@@ -30,11 +30,13 @@ app.use(cors({
 }));
 app.use(express.json());
 //<-- Test Endpoint -->
-// app.get("/", (req, res) => {
-//   res.send("✅ Backend server is running!");
-// });
-// app.use("/api", likedSongRoutes);
-// app.use("/api/playlists",requireAuth(), playlistRoutes);
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Backend is running",
+    timestamp: Date.now(),
+  });
+});
 app.use(clerkMiddleware());
 
 //<-- API Endpoints -->
