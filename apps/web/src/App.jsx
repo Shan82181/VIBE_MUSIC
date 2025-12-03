@@ -7,7 +7,7 @@ import MiniPlayer from "./components/MiniPlayer";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useEffect } from "react";
 import axios from "axios";
-import AuthProvider from "./provider/authProvider.jsx";
+import AuthProvider from "./provider/Authprovider.jsx";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import ExplorePage from "./pages/explore/ExplorePage.jsx";
 import PlaylistPage from "./pages/playlist/PlaylistPage.jsx";
@@ -41,7 +41,7 @@ export function useSyncUser() {
 
 export default function App() {
   useSyncUser();
-  const { audio, updateProgress,  handleEnded } = usePlayerStore(); // ✅ get audio instance
+  const { audio, updateProgress, handleEnded } = usePlayerStore(); // ✅ get audio instance
 
   useEffect(() => {
     // Attach listeners ONCE
