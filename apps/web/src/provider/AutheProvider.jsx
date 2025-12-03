@@ -1,10 +1,10 @@
-// src/providers/AuthProvider.jsx
+import React from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import AxiosInstance from "../lib/axios";
 import { Loader } from "lucide-react";
 
-const Authprovider = ({ children }) => {
+const AutheProvider = ({ children }) => {
   const { getToken, userId } = useAuth();
   const [loading, setLoading] = useState(true);
 
@@ -42,4 +42,4 @@ const Authprovider = ({ children }) => {
   return <>{children}</>;
 };
 
-export default Authprovider;
+export default AutheProvider;
