@@ -24,8 +24,9 @@ export default function MiniPlayer() {
       setLoading(true);
       try {
         const token = await getToken();
+        const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
         const res = await axios.get(
-          `http://localhost:3000/api/search?q=${encodeURIComponent(query)}`,
+          `${ VITE_BACKEND_URL}/api/search?q=${encodeURIComponent(query)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setResults(res.data || []);

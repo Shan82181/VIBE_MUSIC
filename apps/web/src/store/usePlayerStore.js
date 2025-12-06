@@ -131,7 +131,8 @@ export const usePlayerStore = create(
             }
 
             // New track - update source and play
-            const audioSrc = `http://localhost:3000/api/proxy/${track.videoId}`;
+            const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+            const audioSrc = `${VITE_BACKEND_URL}/api/proxy/${track.videoId}`;
             audio.src = audioSrc;
             audio.volume = get().volume;
             audio.currentTime = 0;

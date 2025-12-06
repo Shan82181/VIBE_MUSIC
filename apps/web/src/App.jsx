@@ -25,8 +25,9 @@ export function useSyncUser() {
       (async () => {
         try {
           const token = await getToken();
+          const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
           await axios.post(
-            `http://localhost:3000/api/sync-user/${user.id}`,
+            `${ VITE_BACKEND_URL}/api/sync-user/${user.id}`,
             {},
             { headers: { Authorization: `Bearer ${token}` } }
           );
