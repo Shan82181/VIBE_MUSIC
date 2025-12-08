@@ -47,12 +47,13 @@ router.get('/proxy/:id', async (req, res) => {
     // Force ANDROID client for playback to avoid signatureCipher issues
     const client = 'ANDROID';
     const urls = await getStreamingUrls(req.params.id, client);
+    console.log(`Fetched URLs:`, urls);  // Log the array to see if it's empty
     const best = urls.find(u => u.mimeType && u.mimeType.includes('audio/mp4')) 
               || urls.find(u => u.mimeType && u.mimeType.includes('audio/webm'))
               || urls.find(u => u.mimeType && u.mimeType.includes('audio'))
               || urls[0];
     if (!best) return res.status(404).json({ error: 'No stream' });
-    console.log(`Proxying stream for ${req.params.id} - ${best.url}`);
+    //console.log(`Proxying stream for ${req.params.id} - ${best.url}`);
     
     // Android-like headers for CDN
     const headers = {
@@ -90,7 +91,7 @@ router.get('/proxy/:id', async (req, res) => {
 
     response.data.pipe(res);
   } catch (err) {
-    console.error('Proxy error:', err.message);
+    console.error('Full proxy error:', err);
     res.status(500).json({ error: 'Proxy failed', detail: err.message });
   }
 });
