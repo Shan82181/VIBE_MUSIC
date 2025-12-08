@@ -52,7 +52,8 @@ router.get('/proxy/:id', async (req, res) => {
               || urls.find(u => u.mimeType && u.mimeType.includes('audio'))
               || urls[0];
     if (!best) return res.status(404).json({ error: 'No stream' });
-
+    console.log(`Proxying stream for ${req.params.id} - ${best.url}`);
+    
     // Android-like headers for CDN
     const headers = {
       'User-Agent': 'com.google.android.youtube/19.50.37 (Linux; U; Android 14) gzip',
@@ -75,6 +76,13 @@ router.get('/proxy/:id', async (req, res) => {
       return res.status(response.status).json({ error: 'YouTube CDN refused the request', status: response.status });
     }
 
+    // ADD CORS HEADERS HERE (allow all origins for simplicity; restrict to your frontend domain in production)
+    res.setHeader('Access-Control-Allow-Origin', '*');  // Or specify your frontend's origin, e.g., 'http://localhost:3000'
+    res.setHeader('Access-Control-Allow-Headers', 'Range, User-Agent, Accept, Origin, Referer');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Accept-Ranges, Content-Range');  // Expose these for range requests
+
+    // Existing headers
     if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
     if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', response.headers['accept-ranges']);
     if (response.headers['content-range']) res.setHeader('Content-Range', response.headers['content-range']);
@@ -85,6 +93,14 @@ router.get('/proxy/:id', async (req, res) => {
     console.error('Proxy error:', err.message);
     res.status(500).json({ error: 'Proxy failed', detail: err.message });
   }
+});
+
+// ADD THIS: Handle preflight OPTIONS requests (browsers send these for CORS)
+router.options('/proxy/:id', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, User-Agent, Accept, Origin, Referer');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.status(200).end();
 });
 
 export default router;

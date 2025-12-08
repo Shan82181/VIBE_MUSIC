@@ -37,6 +37,7 @@ app.get("/health", (req, res) => {
     timestamp: Date.now(),
   });
 });
+app.use('/api', apiRoutes);
 app.use(clerkMiddleware());
 
 //<-- API Endpoints -->
@@ -47,7 +48,7 @@ app.use("/api/user", userRoutes);
 //app.use("/api/liked-songs", likedSongRoutes);
 //
 //app.use("/api/music", musicRoutes);
-app.use('/api',requireAuth(), apiRoutes);
+// app.use('/api',requireAuth(), apiRoutes);
 app.use('/api', syncUser);
 app.use('/api', requireAuth(), HomePageData);
 app.use('/api', requireAuth(), ExplorePageData);
