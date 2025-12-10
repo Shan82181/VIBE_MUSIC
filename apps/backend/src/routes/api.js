@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import fetch from "node-fetch";
 import { searchTracks, getTrackMetadata, getStreamingUrls } from '../services/innertubeService.js';
 
 const router = express.Router();
@@ -47,60 +48,64 @@ const WORKER_URL = process.env.WORKER_URL || "https://vibemusic.shantanupal229.w
 const WORKER_API_KEY = process.env.WORKER_API_KEY; // Optional: Add for security (e.g., ?key=your-key)
 
 // Existing router
-router.get('/proxy/:id', async (req, res) => {
+
+
+router.get("/proxy/:id", async (req, res) => {
   try {
     const videoId = req.params.id;
 
-    // Get YouTube streaming URLs from your existing service
+    // 1. Get streaming URLs
     const urls = await getStreamingUrls(videoId);
-    console.log(`Streaming URLs for ${videoId}:`, urls);
-    const audioUrl = urls.find(u => u.mimeType?.includes('audio/mp4') || u.mimeType?.includes('audio/webm'))?.url ||
-                     urls.find(u => u.mimeType?.includes('audio'))?.url;  // Fallback to any audio
+    const audioUrl =
+      urls.find(u =>
+        u.mimeType?.includes("audio/mp4") ||
+        u.mimeType?.includes("audio/webm")
+      )?.url ||
+      urls.find(u => u.mimeType?.includes("audio"))?.url;
+
     if (!audioUrl) {
-      console.error(`No audio stream found for ${videoId}`);
       return res.status(404).json({ error: "No audio stream found" });
     }
 
-    // Construct Worker proxy URL with optional API key
-    let workerProxyUrl = `${WORKER_URL}?url=${encodeURIComponent(audioUrl)}`;
-    if (WORKER_API_KEY) workerProxyUrl += `&key=${WORKER_API_KEY}`;
+    // 2. Final Worker proxy URL
+    let workerUrl = `${WORKER_URL}?url=${encodeURIComponent(audioUrl)}`;
+    if (WORKER_API_KEY) workerUrl += `&key=${WORKER_API_KEY}`;
 
-    // Proxy the audio via Cloudflare Worker
-    const response = await axios({
-      url: workerProxyUrl,
-      method: "GET",
-      responseType: "stream",
+    // 3. Fetch Worker output
+    const workerRes = await fetch(workerUrl, {
       headers: {
-        Range: req.headers.range || "bytes=0-",  // Forward range for seeking
-      },
-      timeout: 10000,  // Add timeout to avoid hanging
+        Range: req.headers.range || "bytes=0-",
+      }
     });
 
-    // Forward headers dynamically for proper audio playback
-    const contentType = response.headers["content-type"] || "audio/mpeg";  // Forward or default
-    res.setHeader("Content-Type", contentType);
-    if (response.headers["content-length"]) res.setHeader("Content-Length", response.headers["content-length"]);
-    if (response.headers["accept-ranges"]) res.setHeader("Accept-Ranges", response.headers["accept-ranges"]);
-    if (response.headers["content-range"]) res.setHeader("Content-Range", response.headers["content-range"]);
-
-    // Optional: Add CORS if needed (though Worker handles it)
-    res.setHeader("Access-Control-Allow-Origin", "*");  // Or restrict to your frontend
-
-    // Pipe audio stream to frontend
-    response.data.pipe(res);
-
-  } catch (err) {
-    console.error("Proxy error:", err.message || err);
-    // Differentiate errors
-    if (err.code === 'ECONNABORTED') {
-      res.status(504).json({ error: "Request timeout", detail: err.message });
-    } else if (err.response) {
-      res.status(err.response.status).json({ error: "Worker error", detail: err.response.data });
-    } else {
-      res.status(500).json({ error: "Proxy failed", detail: err.message || String(err) });
+    // If worker fails → forward status
+    if (!workerRes.ok) {
+      return res.status(workerRes.status).send("Worker failed");
     }
+
+    // 4. Forward headers
+    res.setHeader(
+      "Content-Type",
+      workerRes.headers.get("Content-Type") || "audio/mpeg"
+    );
+
+    const passHeaders = ["Content-Length", "Content-Range", "Accept-Ranges"];
+    passHeaders.forEach(h => {
+      const v = workerRes.headers.get(h);
+      if (v) res.setHeader(h, v);
+    });
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    // 5. Stream Worker response to frontend
+    workerRes.body.pipe(res);
+
+  } catch (error) {
+    console.error("Proxy error:", error);
+    res.status(500).json({ error: "Proxy failed" });
   }
 });
+
 
 
 export default router;
