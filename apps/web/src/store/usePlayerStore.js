@@ -134,7 +134,6 @@ export const usePlayerStore = create(
             const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
             const audioSrc = `${VITE_BACKEND_URL}/api/proxy/${track.videoId}`;
             //console.log("Playing track:", track.title, audioSrc);
-            audio.crossOrigin = 'anonymous';
             audio.src = audioSrc;
             audio.volume = get().volume;
             audio.currentTime = 0;

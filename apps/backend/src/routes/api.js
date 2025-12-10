@@ -42,130 +42,63 @@ router.get('/stream/:id', async (req, res) => {
 });
 
 // Proxy route: streams audio through backend to avoid CDN Access Denied
-router.options('/proxy/:id', (req, res) => {
-  // Allow specific origin in production
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Range, User-Agent, Accept, Origin, Referer');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-  res.status(200).end();
-});
+// At the top, configure your Worker URL (use env var for flexibility)
+const WORKER_URL = process.env.WORKER_URL || "https://vibemusic.shantanupal229.workers.dev"; // Fallback to your URL
+const WORKER_API_KEY = process.env.WORKER_API_KEY; // Optional: Add for security (e.g., ?key=your-key)
 
-router.head('/proxy/:id', async (req, res) => {
-  // Minimal HEAD handler to let players probe meta without streaming body
-  try {
-    const id = req.params.id;
-    const client = 'WEB';
-    const urls = await getStreamingUrls(id, client); // your function
-    const best = urls.find(u => u.mimeType?.includes('audio/mp4'))
-              || urls.find(u => u.mimeType?.includes('audio/webm'))
-              || urls[0];
-    if (!best) return res.sendStatus(404);
-
-    const headers = {
-      'User-Agent': 'com.google.android.youtube/19.50.37 (Linux; U; Android 14) gzip',
-      'Accept': '*/*',
-      'Connection': 'keep-alive',
-      'Origin': 'https://www.youtube.com',
-      'Referer': 'https://www.youtube.com/',
-      'x-origin': 'https://www.youtube.com',
-      'Range': req.headers['range'] || 'bytes=0-',
-    };
-
-    const upstream = await axios.get(best.url, { method: 'GET', headers, responseType: 'stream', validateStatus: ()=>true });
-    if (upstream.status >= 400) return res.status(upstream.status).end();
-
-    // Propagate relevant headers
-    const propagate = ['content-length','accept-ranges','content-range','content-type'];
-    propagate.forEach(h => {
-      if (upstream.headers[h]) res.setHeader(h, upstream.headers[h]);
-    });
-
-    // CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Accept-Ranges, Content-Range');
-    // No body for HEAD
-    res.status(upstream.status === 206 ? 206 : 200).end();
-
-    // destroy upstream stream (we only probed headers)
-    upstream.data?.destroy?.();
-  } catch (err) {
-    console.error('HEAD proxy error', err);
-    res.status(500).end();
-  }
-});
-
+// Existing router
 router.get('/proxy/:id', async (req, res) => {
-  let upstream;
   try {
-    const id = req.params.id;
-    // validate id format to prevent abuse
-    if (!id || typeof id !== 'string' || id.length > 200) return res.status(400).json({ error: 'bad id' });
+    const videoId = req.params.id;
 
-    const client = 'ANDROID';
-    const urls = await getStreamingUrls(id, client);
-    const best = urls.find(u => u.mimeType?.includes('audio/mp4'))
-              || urls.find(u => u.mimeType?.includes('audio/webm'))
-              || urls[0];
-    if (!best) return res.status(404).json({ error: 'No stream' });
-
-    console.log(`Proxying stream for ${id} -> ${best.url}`);
-
-    const headers = {
-      'User-Agent': 'com.google.android.youtube/19.50.37 (Linux; U; Android 14) gzip',
-      'Accept': '*/*',
-      'Connection': 'keep-alive',
-      'Origin': 'https://www.youtube.com',
-      'Referer': 'https://www.youtube.com/',
-      'x-origin': 'https://www.youtube.com',
-      'Range': req.headers['range'] || 'bytes=0-',
-    };
-
-    upstream = await axios.get(best.url, {
-      responseType: 'stream',
-      headers,
-      validateStatus: () => true,
-      // consider timeout: 15000
-    });
-
-    if (upstream.status >= 400) {
-      console.error('CDN rejected', upstream.status, upstream.statusText);
-      return res.status(upstream.status).json({ error: 'YouTube CDN refused the request', status: upstream.status });
+    // Get YouTube streaming URLs from your existing service
+    const urls = await getStreamingUrls(videoId);
+    console.log(`Streaming URLs for ${videoId}:`, urls);
+    const audioUrl = urls.find(u => u.mimeType?.includes('audio/mp4') || u.mimeType?.includes('audio/webm'))?.url ||
+                     urls.find(u => u.mimeType?.includes('audio'))?.url;  // Fallback to any audio
+    if (!audioUrl) {
+      console.error(`No audio stream found for ${videoId}`);
+      return res.status(404).json({ error: "No audio stream found" });
     }
 
-    // CORS & expose
-    res.setHeader('Access-Control-Allow-Origin', '*'); // restrict in prod
-    res.setHeader('Access-Control-Allow-Headers', 'Range, User-Agent, Accept, Origin, Referer');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Accept-Ranges, Content-Range');
+    // Construct Worker proxy URL with optional API key
+    let workerProxyUrl = `${WORKER_URL}?url=${encodeURIComponent(audioUrl)}`;
+    if (WORKER_API_KEY) workerProxyUrl += `&key=${WORKER_API_KEY}`;
 
-    // Forward useful headers from upstream
-    if (upstream.headers['content-length']) res.setHeader('Content-Length', upstream.headers['content-length']);
-    if (upstream.headers['accept-ranges']) res.setHeader('Accept-Ranges', upstream.headers['accept-ranges']);
-    if (upstream.headers['content-range']) res.setHeader('Content-Range', upstream.headers['content-range']);
-    res.setHeader('Content-Type', best.mimeType || upstream.headers['content-type'] || 'audio/mpeg');
-
-    // Set status code same as upstream so browser handles seeking (206 or 200)
-    res.status(upstream.status === 206 ? 206 : 200);
-
-    // If client disconnects, destroy upstream to free resources
-    const cleanup = () => {
-      try { upstream.data?.destroy?.(); } catch (e) {}
-    };
-    req.on('close', cleanup);
-
-    // Pipe upstream to client
-    upstream.data.pipe(res);
-
-    // handle upstream stream errors
-    upstream.data.on('error', (streamErr) => {
-      console.error('Upstream stream error', streamErr);
-      try { res.destroy(streamErr); } catch(e) {}
+    // Proxy the audio via Cloudflare Worker
+    const response = await axios({
+      url: workerProxyUrl,
+      method: "GET",
+      responseType: "stream",
+      headers: {
+        Range: req.headers.range || "bytes=0-",  // Forward range for seeking
+      },
+      timeout: 10000,  // Add timeout to avoid hanging
     });
 
+    // Forward headers dynamically for proper audio playback
+    const contentType = response.headers["content-type"] || "audio/mpeg";  // Forward or default
+    res.setHeader("Content-Type", contentType);
+    if (response.headers["content-length"]) res.setHeader("Content-Length", response.headers["content-length"]);
+    if (response.headers["accept-ranges"]) res.setHeader("Accept-Ranges", response.headers["accept-ranges"]);
+    if (response.headers["content-range"]) res.setHeader("Content-Range", response.headers["content-range"]);
+
+    // Optional: Add CORS if needed (though Worker handles it)
+    res.setHeader("Access-Control-Allow-Origin", "*");  // Or restrict to your frontend
+
+    // Pipe audio stream to frontend
+    response.data.pipe(res);
+
   } catch (err) {
-    console.error('Proxy error:', err?.message || err);
-    if (!res.headersSent) res.status(500).json({ error: 'Proxy failed', detail: err.message || String(err) });
-    upstream?.data?.destroy?.();
+    console.error("Proxy error:", err.message || err);
+    // Differentiate errors
+    if (err.code === 'ECONNABORTED') {
+      res.status(504).json({ error: "Request timeout", detail: err.message });
+    } else if (err.response) {
+      res.status(err.response.status).json({ error: "Worker error", detail: err.response.data });
+    } else {
+      res.status(500).json({ error: "Proxy failed", detail: err.message || String(err) });
+    }
   }
 });
 

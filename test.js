@@ -1,44 +1,95 @@
-router.get('/proxy/:id', async (req, res) => {
-  try {
-    // Force ANDROID client for playback to avoid signatureCipher issues
-    const client = 'ANDROID';
-    const urls = await getStreamingUrls(req.params.id, client);
-    const best = urls.find(u => u.mimeType && u.mimeType.includes('audio/mp4')) 
-              || urls.find(u => u.mimeType && u.mimeType.includes('audio/webm'))
-              || urls.find(u => u.mimeType && u.mimeType.includes('audio'))
-              || urls[0];
-    if (!best) return res.status(404).json({ error: 'No stream' });
-    console.log(`Proxying stream for ${req.params.id} - ${best.url}`);
-    // Android-like headers for CDN
-    const headers = {
-      'User-Agent': 'com.google.android.youtube/19.50.37 (Linux; U; Android 14) gzip',
-      'Accept': '*/*',
-      'Connection': 'keep-alive',
-      'Origin': 'https://www.youtube.com',
-      'Referer': 'https://www.youtube.com/',
-      'x-origin': 'https://www.youtube.com',
-      'Range': req.headers['range'] || 'bytes=0-',
-    };
+// Simple in-memory rate limiter (resets on Worker restart; use a DB for persistence)
+let requestCount = 0;
+const MAX_REQUESTS_PER_MINUTE = 100;  // Adjust as needed
 
-    const response = await axios.get(best.url, {
-      responseType: 'stream',
-      headers,
-      validateStatus: () => true
-    });
-
-    if (response.status >= 400) {
-      console.error('CDN rejected', response.status, response.statusText);
-      return res.status(response.status).json({ error: 'YouTube CDN refused the request', status: response.status });
+export default {
+  async fetch(request) {
+    // Basic rate limiting
+    requestCount++;
+    if (requestCount > MAX_REQUESTS_PER_MINUTE) {
+      return new Response("Rate limit exceeded", { status: 429 });
     }
 
-    if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
-    if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', response.headers['accept-ranges']);
-    if (response.headers['content-range']) res.setHeader('Content-Range', response.headers['content-range']);
-    res.setHeader('Content-Type', best.mimeType || 'audio/mpeg');
+    try {
+      const url = new URL(request.url);
+      const target = url.searchParams.get("url");
 
-    response.data.pipe(res);
-  } catch (err) {
-    console.error('Proxy error:', err.message);
-    res.status(500).json({ error: 'Proxy failed', detail: err.message });
+      // Validate the URL
+      if (!target || !target.includes("googlevideo.com")) {
+        return new Response("Invalid or missing YouTube URL", { status: 400 });
+      }
+
+      // Handle HEAD requests for audio probing
+      if (request.method === "HEAD") {
+        const headRes = await fetch(target, {
+          method: "HEAD",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://www.youtube.com",
+            "Origin": "https://www.youtube.com",
+            "Range": request.headers.get("Range") || "bytes=0-",
+          },
+        });
+
+        const headers = {
+          "Content-Type": headRes.headers.get("Content-Type") || "audio/mpeg",
+          "Access-Control-Allow-Origin": "https://your-frontend-domain.com",  // Replace with your actual domain
+          "Access-Control-Allow-Headers": "Range",
+          "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+          "Access-Control-Expose-Headers": "Content-Length, Accept-Ranges, Content-Range",
+          "Cache-Control": "no-cache",
+        };
+
+        ["Content-Length", "Accept-Ranges", "Content-Range"].forEach(h => {
+          const val = headRes.headers.get(h);
+          if (val) headers[h] = val;
+        });
+
+        return new Response(null, { headers, status: headRes.status });
+      }
+
+      // Fetch the audio stream
+      const res = await fetch(target, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Referer": "https://www.youtube.com",
+          "Origin": "https://www.youtube.com",
+          "Range": request.headers.get("Range") || "bytes=0-",
+        },
+      });
+
+      if (!res.ok) {
+        return new Response(`Failed to fetch stream: ${res.status}`, { status: res.status });
+      }
+
+      // Handle redirects (optional, but prevents issues)
+      if (res.status >= 300 && res.status < 400) {
+        const redirectUrl = res.headers.get("Location");
+        if (redirectUrl) {
+          return Response.redirect(redirectUrl, res.status);
+        }
+      }
+
+      // Prepare headers for streaming
+      const headers = {
+        "Content-Type": res.headers.get("Content-Type") || "audio/mpeg",
+        "Access-Control-Allow-Origin": "https://your-frontend-domain.com",  // Secure this
+        "Access-Control-Allow-Headers": "Range",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Expose-Headers": "Content-Length, Accept-Ranges, Content-Range",
+        "Cache-Control": "no-cache",
+      };
+
+      ["Content-Length", "Accept-Ranges", "Content-Range"].forEach(h => {
+        const val = res.headers.get(h);
+        if (val) headers[h] = val;
+      });
+
+      // Return the stream
+      return new Response(res.body, { headers, status: res.status });
+    } catch (error) {
+      console.error("Worker error:", error);
+      return new Response("Proxy error", { status: 500 });
+    }
   }
-});
+};
