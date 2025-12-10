@@ -67,6 +67,8 @@ router.get("/proxy/:id", async (req, res) => {
       return res.status(404).json({ error: "No audio stream found" });
     }
 
+    console.log("Proxying audio URL:", audioUrl);
+
     // 2. Final Worker proxy URL
     let workerUrl = `${WORKER_URL}?url=${encodeURIComponent(audioUrl)}`;
     if (WORKER_API_KEY) workerUrl += `&key=${WORKER_API_KEY}`;
