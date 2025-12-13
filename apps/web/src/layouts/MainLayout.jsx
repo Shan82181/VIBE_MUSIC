@@ -9,6 +9,8 @@ import Sidebar from "../components/Sidebar";
 import GlobalPlayerBar from "@/components/GlobalPlayerBar";
 import PlayerErrorBoundary from "../components/ErrorBoundary/PlayerErrorBoundary";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import YouTubePlayerMount from "@/components/YoutubePlayerMount";
+
 const MainLayout = () => {
   return (
     <div className="flex flex-col h-screen">
@@ -34,6 +36,7 @@ const MainLayout = () => {
           </PlayerErrorBoundary>
         </ResizablePanel>
       </ResizablePanelGroup>
+      <YouTubePlayerMount />
     </div>
   );
 };

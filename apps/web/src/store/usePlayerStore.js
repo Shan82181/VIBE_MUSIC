@@ -5,65 +5,78 @@ import { persist } from "zustand/middleware";
 export const usePlayerStore = create(
   persist(
     (set, get) => {
-      // Create audio element once
-      const audio = new Audio();
-
-      // ================================
-      // 🔊 AUDIO EVENT LISTENERS
-      // ================================
-      audio.addEventListener("loadedmetadata", () => {
-        const { audio } = get();
-        set({
-          duration: audio.duration,
-        });
-      });
-
-      audio.addEventListener("timeupdate", () => {
-        const { audio } = get();
-        set({
-          currentTime: audio.currentTime,
-          progress: audio.duration
-            ? (audio.currentTime / audio.duration) * 100
-            : 0,
-        });
-      });
-
-      audio.addEventListener("ended", () => {
-        console.log("Track ended, playing next...");
-        get().playNext();
-      });
-
-      audio.addEventListener("loadstart", () => {
-        set({ isBuffering: true });
-      });
-
-      audio.addEventListener("canplay", () => {
-        set({ isBuffering: false });
-      });
-
-      audio.addEventListener("error", (e) => {
-        console.error("Audio error:", e);
-        set({ isPlaying: false, isBuffering: false });
-      });
-
       return {
         // ================================
         // 🔥 PLAYER STATE
         // ================================
-        audio,
+        player: null, // The YouTube IFrame Player instance
+        isReady: false, // Whether the player is initialized
+        isBuffering: false, // Whether the player is buffering
         currentTrack: null,
-        isPlaying: false,
+        isPlaying: false, // Playing or paused
         isBuffering: false,
-        progress: 0,
-        currentTime: 0,
-        duration: 0,
-        volume: 1,
+        progress: 0, // Percentage (0-100)
+        progressTimer: null, // Interval timer for progress updates
+        currentTime: 0, // Current time in seconds
+        duration: 0, // Duration in seconds
+        volume: 1, // Volume (0.0 to 1.0)
 
         // QUEUE SYSTEM
         queue: [],
         queueIndex: -1, // -1 means no track is selected
         shuffle: false,
         loop: "none", // "none" | "one" | "all"
+
+        // ================================
+        // 🎥 INIT YOUTUBE PLAYER (SINGLETON)
+        // ================================
+        initPlayer: () => {
+          if (get().player) return;
+
+          if (!window.YT) {
+            const tag = document.createElement("script");
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.body.appendChild(tag);
+          }
+
+          window.onYouTubeIframeAPIReady = () => {
+            const ytPlayer = new window.YT.Player("video", {
+              height: "0",
+              width: "0",
+              playerVars: {
+                autoplay: 0,
+                controls: 0,
+                playsinline: 1,
+              },
+              events: {
+                onReady: () => {
+                  set({ player: ytPlayer, isReady: true });
+                  ytPlayer.setVolume(get().volume);
+                },
+                onStateChange: (e) => {
+                  const YTState = window.YT.PlayerState;
+
+                  if (e.data === YTState.PLAYING) {
+                    set({ isPlaying: true, isBuffering: false });
+                    get().startProgressTimer();
+                  }
+
+                  if (e.data === YTState.PAUSED) {
+                    set({ isPlaying: false });
+                  }
+
+                  if (e.data === YTState.BUFFERING) {
+                    set({ isBuffering: true });
+                  }
+
+                  if (e.data === YTState.ENDED) {
+                    get().handleEnded();
+                  }
+                },
+              },
+            });
+          };
+        },
 
         // ================================
         // ➕ ADD TO QUEUE
@@ -109,8 +122,8 @@ export const usePlayerStore = create(
         // ================================
         // ▶ PLAY TRACK (GLOBAL)
         // ================================
-        playTrack: async (track) => {
-          const { audio, currentTrack, isPlaying, queue } = get();
+        playTrack:(track) => {
+          const { player, currentTrack, isPlaying, queue } = get();
 
           if (!track || !track.videoId) {
             console.error("playTrack: Invalid track provided", track);
@@ -120,25 +133,14 @@ export const usePlayerStore = create(
           try {
             // Toggle play/pause if same track
             if (currentTrack?.videoId === track.videoId) {
-              if (isPlaying) {
-                audio.pause();
-                set({ isPlaying: false });
-              } else {
-                await audio.play();
-                set({ isPlaying: true });
-              }
+              get().togglePlay();
               return;
             }
+            player.setVolume(get().volume);
+            player.seekTo(0, true);
 
-            // New track - update source and play
-            const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-            const audioSrc = `${VITE_BACKEND_URL}/api/proxy/${track.videoId}`;
-            //console.log("Playing track:", track.title, audioSrc);
-            audio.src = audioSrc;
-            audio.volume = get().volume;
-            audio.currentTime = 0;
 
-            await audio.play();
+            player.loadVideoById(track.videoId);
 
             // Find track index in queue if it exists
             const trackIndex = queue.findIndex(
@@ -170,7 +172,7 @@ export const usePlayerStore = create(
             return;
           }
 
-          const { currentTrack, audio } = get();
+          const { currentTrack, player } = get();
           const validStartIndex = Math.max(
             0,
             Math.min(startIndex, tracks.length - 1)
@@ -194,7 +196,7 @@ export const usePlayerStore = create(
           } else {
             // Same track, just ensure it's playing and update queue context
             if (!get().isPlaying) {
-              audio.play().catch(console.error);
+              player.playVideo().catch(console.error);
             }
           }
         },
@@ -221,7 +223,7 @@ export const usePlayerStore = create(
         // ⏭️ PLAY NEXT TRACK (FIXED)
         // ================================
         playNext: () => {
-          const { queue, queueIndex, shuffle, loop, audio, currentTrack } =
+          const { queue, queueIndex, shuffle, loop, player, currentTrack } =
             get();
 
           console.log("playNext called:", {
@@ -235,7 +237,7 @@ export const usePlayerStore = create(
           // No queue or invalid state
           if (!queue.length || queueIndex === -1) {
             console.log("No queue or invalid index - stopping playback");
-            audio.pause();
+            player.pauseVideo();
             set({ isPlaying: false });
             return;
           }
@@ -243,8 +245,8 @@ export const usePlayerStore = create(
           // LOOP ONE - restart current track
           if (loop === "one" && currentTrack) {
             console.log("Loop one - restarting current track");
-            audio.currentTime = 0;
-            audio.play().catch(console.error);
+            player.getCurrentTime(0);
+            player.playVideo().catch(console.error);
             return;
           }
 
@@ -285,7 +287,7 @@ export const usePlayerStore = create(
           } else {
             // No loop - stop playback
             console.log("End of queue - stopping playback");
-            audio.pause();
+            player.pauseVideo();
             set({
               isPlaying: false,
               progress: 0,
@@ -298,19 +300,18 @@ export const usePlayerStore = create(
         // ⏮️ PLAY PREVIOUS TRACK (FIXED)
         // ================================
         playPrevious: () => {
-          const { audio, queue, queueIndex, currentTrack } = get();
+          const { player, queue, queueIndex, currentTrack } = get();
 
           console.log("playPrevious:", {
             queueLength: queue.length,
             queueIndex,
-            currentTime: audio.currentTime,
+            currentTime: player.getCurrentTime(),
           });
 
           // If track has been playing for more than 3 seconds, restart it
-          if (audio.currentTime > 3) {
+          if (player.getCurrentTime() > 3) {
             console.log("Restarting current track (played >3s)");
-            audio.currentTime = 0;
-            set({ progress: 0, currentTime: 0 });
+            player.seekTo(0, true);
             return;
           }
 
@@ -319,8 +320,7 @@ export const usePlayerStore = create(
             console.log("No previous track available");
             // If we're at the first track, just restart it
             if (currentTrack) {
-              audio.currentTime = 0;
-              set({ progress: 0, currentTime: 0 });
+              player.seekTo(0, true);
             }
             return;
           }
@@ -336,7 +336,7 @@ export const usePlayerStore = create(
         // 🗑️ REMOVE FROM QUEUE
         // ================================
         removeFromQueue: (index) => {
-          const { queue, queueIndex, currentTrack, audio } = get();
+          const { queue, queueIndex, currentTrack, player } = get();
 
           if (index < 0 || index >= queue.length) {
             console.warn("removeFromQueue: Index out of bounds");
@@ -354,12 +354,10 @@ export const usePlayerStore = create(
           } else if (index === queueIndex) {
             // If removing current track, stop playback
             if (currentTrack?.videoId === removedTrack.videoId) {
-              audio.pause();
+              player.pauseVideo();
               set({
                 isPlaying: false,
                 currentTrack: null,
-                progress: 0,
-                currentTime: 0,
               });
             }
             // If not the last track, move to same index (which will be next track)
@@ -386,7 +384,7 @@ export const usePlayerStore = create(
         // ▶ TOGGLE PLAY/PAUSE
         // ================================
         togglePlay: () => {
-          const { audio, isPlaying, currentTrack } = get();
+          const { player, isPlaying, currentTrack } = get();
 
           if (!currentTrack) {
             console.warn("No track to play");
@@ -394,15 +392,11 @@ export const usePlayerStore = create(
           }
 
           if (isPlaying) {
-            audio.pause();
+            player.pauseVideo();
             set({ isPlaying: false });
           } else {
-            audio
-              .play()
-              .then(() => {
-                set({ isPlaying: true });
-              })
-              .catch(console.error);
+            player.playVideo();
+            set({ isPlaying: true });
           }
         },
 
@@ -410,51 +404,31 @@ export const usePlayerStore = create(
         // ⏩ SEEK BAR
         // ================================
         seekTo: (percent) => {
-          const { audio } = get();
-          if (!audio.duration) return;
-
-          const newTime = (percent / 100) * audio.duration;
-          audio.currentTime = newTime;
-          set({
-            progress: percent,
-            currentTime: newTime,
-          });
+          const { player } = get();
+          const duration = player.getDuration();
+          player.seekTo((percent / 100) * duration, true);
         },
 
-        seekToTime: (timeInSeconds) => {
-          const { audio } = get();
-          if (!audio.duration) return;
-
-          const validTime = Math.max(
-            0,
-            Math.min(timeInSeconds, audio.duration)
-          );
-          audio.currentTime = validTime;
-          set({
-            currentTime: validTime,
-            progress: audio.duration ? (validTime / audio.duration) * 100 : 0,
-          });
+        seekToTime: (seconds) => {
+          const { player } = get();
+          player.seekTo(seconds, true);
         },
 
         // ================================
         // 🔊 VOLUME
         // ================================
         setVolume: (value) => {
-          const { audio } = get();
+          const { player } = get();
           const vol = Math.max(0, Math.min(1, value / 100));
-          audio.volume = vol;
+          player.setVolume(vol);
           set({ volume: vol });
         },
 
         toggleMute: () => {
-          const { audio, volume } = get();
-          if (audio.volume > 0) {
-            audio.volume = 0;
-            set({ volume: 0 });
-          } else {
-            audio.volume = volume > 0 ? volume : 0.5;
-            set({ volume: volume > 0 ? volume : 0.5 });
-          }
+          const { player, volume } = get();
+          if (player.isMuted()) player.unMute();
+          else player.mute();
+          set({ volume: player.isMuted() ? 0 : volume });
         },
 
         // ================================
@@ -479,15 +453,13 @@ export const usePlayerStore = create(
         // 🧹 CLEAR QUEUE
         // ================================
         clearQueue: () => {
-          const { audio } = get();
-          audio.pause();
+          const { player } = get();
+          player.pauseVideo();
 
           set({
             queue: [],
             queueIndex: -1,
             isPlaying: false,
-            progress: 0,
-            currentTime: 0,
           });
 
           console.log("Queue cleared");
@@ -551,51 +523,45 @@ export const usePlayerStore = create(
         },
 
         // ================================
+        // 📊 PROGRESS TIMER
+        // ================================
+        startProgressTimer: () => {
+          clearInterval(get().progressTimer);
+
+          const timer = setInterval(() => {
+            const { player } = get();
+            if (!player) return;
+
+            const currentTime = player.getCurrentTime();
+            const duration = player.getDuration();
+
+            set({
+              currentTime,
+              duration,
+              progress: duration
+                ? (currentTime / duration) * 100
+                : 0,
+            });
+          }, 1000);
+
+          set({ progressTimer: timer });
+        },
+
+        handleEnded: () => {
+          clearInterval(get().progressTimer);
+          get().playNext();
+        },
+
+        // ================================
         // 🔄 RESET PLAYER
         // ================================
         reset: () => {
-          const { audio } = get();
-          audio.pause();
+          const { player } = get();
+          player.pauseVideo();
 
-          const freshAudio = new Audio();
-
-          // Reattach event listeners
-          freshAudio.addEventListener("loadedmetadata", () => {
-            const { audio } = get();
-            set({
-              duration: audio.duration,
-            });
-          });
-
-          freshAudio.addEventListener("timeupdate", () => {
-            const { audio } = get();
-            set({
-              currentTime: audio.currentTime,
-              progress: audio.duration
-                ? (audio.currentTime / audio.duration) * 100
-                : 0,
-            });
-          });
-
-          freshAudio.addEventListener("ended", () => {
-            get().playNext();
-          });
-
-          freshAudio.addEventListener("loadstart", () => {
-            set({ isBuffering: true });
-          });
-
-          freshAudio.addEventListener("canplay", () => {
-            set({ isBuffering: false });
-          });
-
-          freshAudio.addEventListener("error", (e) => {
-            console.error("Audio error:", e);
-            set({ isPlaying: false, isBuffering: false });
-          });
+          clearInterval(get().progressTimer);
 
           set({
-            audio: freshAudio,
             currentTrack: null,
             isPlaying: false,
             isBuffering: false,

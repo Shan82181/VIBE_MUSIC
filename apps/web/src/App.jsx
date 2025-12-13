@@ -13,7 +13,6 @@ import ExplorePage from "./pages/explore/ExplorePage.jsx";
 import PlaylistPage from "./pages/playlist/PlaylistPage.jsx";
 import NavigationPage from "./pages/navigation/NavigationPage.jsx";
 import CategoryPage from "./pages/navigation/CategoryPage.jsx";
-import { usePlayerStore } from "@/store/usePlayerStore"; // ✅ new
 import PlaylistDetails from "./pages/createplaylist/PlaylistDetails.jsx";
 
 export function useSyncUser() {
@@ -42,18 +41,6 @@ export function useSyncUser() {
 
 export default function App() {
   useSyncUser();
-  const { audio, updateProgress, handleEnded } = usePlayerStore(); // ✅ get audio instance
-
-  useEffect(() => {
-    // Attach listeners ONCE
-    audio.addEventListener("timeupdate", updateProgress);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", updateProgress);
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [audio, updateProgress]);
 
   return (
     <AuthProvider>
