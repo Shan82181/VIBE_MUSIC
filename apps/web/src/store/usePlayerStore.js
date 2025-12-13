@@ -19,7 +19,7 @@ export const usePlayerStore = create(
         progressTimer: null, // Interval timer for progress updates
         currentTime: 0, // Current time in seconds
         duration: 0, // Duration in seconds
-        volume: 1, // Volume (0.0 to 1.0)
+        volume: 100, // Volume (0.0 to 1.0)
 
         // QUEUE SYSTEM
         queue: [],
@@ -122,7 +122,7 @@ export const usePlayerStore = create(
         // ================================
         // ▶ PLAY TRACK (GLOBAL)
         // ================================
-        playTrack:(track) => {
+        playTrack: (track) => {
           const { player, currentTrack, isPlaying, queue } = get();
 
           if (!track || !track.videoId) {
@@ -139,8 +139,10 @@ export const usePlayerStore = create(
             player.setVolume(get().volume);
             player.seekTo(0, true);
 
-
             player.loadVideoById(track.videoId);
+            if (player) {
+              player.setVolume(get().volume);
+            }
 
             // Find track index in queue if it exists
             const trackIndex = queue.findIndex(
@@ -419,9 +421,9 @@ export const usePlayerStore = create(
         // ================================
         setVolume: (value) => {
           const { player } = get();
-          const vol = Math.max(0, Math.min(1, value / 100));
-          player.setVolume(vol);
-          set({ volume: vol });
+          //const vol = Math.max(0, Math.min(100, value));
+          player.setVolume(value);
+          set({ volume: value });
         },
 
         toggleMute: () => {
@@ -538,9 +540,7 @@ export const usePlayerStore = create(
             set({
               currentTime,
               duration,
-              progress: duration
-                ? (currentTime / duration) * 100
-                : 0,
+              progress: duration ? (currentTime / duration) * 100 : 0,
             });
           }, 1000);
 
