@@ -21,7 +21,7 @@ const Topbar = () => {
     <header className="h-[64px] w-full flex items-center justify-between px-6 bg-black ">
       <div className="flex items-center gap-2">
         <img
-          src={"../../src/images/VIBE_LOGO.svg"}
+          src={"../../public/icons/VIBE_LOGO.svg"}
           alt="Vibe Logo"
           className="w-10 h-10"
         />
