@@ -50,6 +50,7 @@ export const usePlayerStore = create(
               },
               events: {
                 onReady: () => {
+                  console.log("YouTube player ready!");
                   set({ player: ytPlayer, isReady: true });
                   ytPlayer.setVolume(get().volume);
                 },
@@ -119,11 +120,17 @@ export const usePlayerStore = create(
           }
         },
 
+        
         // ================================
         // ▶ PLAY TRACK (GLOBAL)
         // ================================
         playTrack: (track) => {
           const { player, currentTrack, isPlaying, queue } = get();
+
+          if (!player) {
+            console.warn("playTrack: Player not initialized yet. Skipping.");
+            return;
+          }
 
           if (!track || !track.videoId) {
             console.error("playTrack: Invalid track provided", track);

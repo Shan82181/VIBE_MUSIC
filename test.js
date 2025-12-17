@@ -1,592 +1,409 @@
-// src/store/usePlayerStore.js
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+// src/components/GlobalPlayerBar.jsx
+import React, { useState } from "react";
+import { usePlayerStore } from "@/store/usePlayerStore";
+import { useUser } from "@clerk/clerk-react";
+import { useUserPlaylistMutations } from "../hooks/useUserPlaylistMutations.js";
+import { useUserPlaylists } from "../hooks/useUserPlaylist.js";
+import { toast } from "react-toastify";
 
-export const usePlayerStore = create(
-  persist(
-    (set, get) => {
-      return {
-        // ================================
-        // 🔥 PLAYER STATE
-        // ================================
-        player: null, // The YouTube IFrame Player instance
-        isReady: false, // Whether the player is initialized
-        isBuffering: false, // Whether the player is buffering
-        currentTrack: null,
-        isPlaying: false, // Playing or paused
-        isBuffering: false,
-        progress: 0, // Percentage (0-100)
-        progressTimer: null, // Interval timer for progress updates
-        currentTime: 0, // Current time in seconds
-        duration: 0, // Duration in seconds
-        volume: 1, // Volume (0.0 to 1.0)
+import LikeButton from "./LikedButton";
+import AddToPlaylistModal from "./userPlaylist/AddToPlaylistModal";
 
-        // QUEUE SYSTEM
-        queue: [],
-        queueIndex: -1, // -1 means no track is selected
-        shuffle: false,
-        loop: "none", // "none" | "one" | "all"
+import { Ellipsis } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import LikeButtonErrorBoundary from "./ErrorBoundary/LikeButtonErrorBoundary.jsx";
+import { useLikedSongData } from "@/hooks/useLikedSongsData.js";
+import { Slider } from "@/components/ui/slider";
+import QueueDrawer from "./QueueDrawer";
 
-        // ================================
-        // 🎥 INIT YOUTUBE PLAYER (SINGLETON)
-        // ================================
-        initPlayer: () => {
-          if (get().player) return;
+export default function GlobalPlayerBar() {
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showQueueDrawer, setShowQueueDrawer] = useState(false);
 
-          if (!window.YT) {
-            const tag = document.createElement("script");
-            tag.src = "https://www.youtube.com/iframe_api";
-            document.body.appendChild(tag);
-          }
+  // Hooks MUST always stay top
+  const { user, isLoaded } = useUser();
+  const userId = isLoaded && user ? user.id : null;
 
-          window.onYouTubeIframeAPIReady = () => {
-            const ytPlayer = new window.YT.Player("video", {
-              height: "0",
-              width: "0",
-              playerVars: {
-                autoplay: 0,
-                controls: 0,
-                playsinline: 1,
-              },
-              events: {
-                onReady: () => {
-                  set({ player: ytPlayer, isReady: true });
-                  ytPlayer.setVolume(get().volume);
-                },
-                onStateChange: (e) => {
-                  const YTState = window.YT.PlayerState;
+  // ✅ Get ALL player state and actions at once
+  const {
+    currentTrack,
+    isPlaying,
+    progress,
+    volume,
+    shuffle,
+    loop,
+    queue,
+    queueIndex,
+    togglePlay,
+    playNext,
+    playPrevious,
+    toggleShuffle,
+    toggleLoop,
+    seekTo,
+    setVolume,
+    getQueueInfo,
+  } = usePlayerStore();
 
-                  if (e.data === YTState.PLAYING) {
-                    set({ isPlaying: true, isBuffering: false });
-                    get().startProgressTimer();
-                  }
+  useLikedSongData(); // Required for smooth updates
 
-                  if (e.data === YTState.PAUSED) {
-                    set({ isPlaying: false });
-                  }
+  const { addSongToPlaylist } = useUserPlaylistMutations(
+    isLoaded ? user.id : null
+  );
+  const { data: playlists = [], refetch } = useUserPlaylists(userId);
 
-                  if (e.data === YTState.BUFFERING) {
-                    set({ isBuffering: true });
-                  }
+  // Toggle queue drawer
+  const toggleQueueDrawer = () => {
+    setShowQueueDrawer(!showQueueDrawer);
+  };
 
-                  if (e.data === YTState.ENDED) {
-                    get().handleEnded();
-                  }
-                },
-              },
-            });
-          };
-        },
+  // Format time for display
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
-        // ================================
-        // ➕ ADD TO QUEUE
-        // ================================
-        addToQueue: (tracks) => {
-          const { queue, queueIndex, currentTrack } = get();
+  // Get current time and duration from store
+  const { currentTime, duration } = usePlayerStore();
 
-          // If tracks is a single object, convert to array
-          const newTracks = Array.isArray(tracks) ? tracks : [tracks];
+  // Debug queue state
+  // console.log("Queue State:", {
+  //   queueLength: queue.length,
+  //   queueIndex,
+  //   currentTrack: currentTrack?.title,
+  //   hasQueue: queue.length > 0
+  // });
 
-          if (newTracks.length === 0) {
-            console.warn("addToQueue: No tracks to add");
-            return;
-          }
+  if (!user) return null;
+  if (!currentTrack) return null;
 
-          const updatedQueue = [...queue, ...newTracks];
-          let newQueueIndex = queueIndex;
+  const queueInfo = getQueueInfo();
 
-          // If no track is currently playing and queue was empty, set to first track
-          if (queueIndex === -1 && updatedQueue.length > 0) {
-            newQueueIndex = 0;
-          }
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-[#181818] border-t border-gray-700 z-50">
+      <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
+        {/* LEFT SIDE - Current Track Info */}
+        <div className="flex items-center gap-3 w-1/3 min-w-0">
+          <div className="w-14 h-14 rounded-md overflow-hidden bg-gray-700 flex items-center justify-center">
+            {currentTrack.thumbnail ? (
+              <img
+                src={currentTrack.thumbnail}
+                alt={currentTrack.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white text-lg">🎵</span>
+            )}
+          </div>
 
-          set({
-            queue: updatedQueue,
-            queueIndex: newQueueIndex,
-          });
+          <div className="min-w-0">
+            <p className="text-white font-medium truncate">
+              {currentTrack.title}
+            </p>
+            <p className="text-sm text-gray-400 truncate">
+              {currentTrack.artist || "Unknown Artist"}
+            </p>
 
-          console.log(
-            `Added ${newTracks.length} tracks to queue. Total: ${updatedQueue.length}`
-          );
+            {/* Queue Position Info - Only show if we have a queue */}
+            {queue.length > 0 && (
+              <div className="text-xs text-gray-500 mt-1">
+                {queueInfo.positionInQueue} of {queueInfo.queueLength} in queue
+              </div>
+            )}
+          </div>
+        </div>
 
-          // Auto-play if nothing is currently playing
-          if (
-            !currentTrack &&
-            updatedQueue.length > 0 &&
-            newQueueIndex !== -1
-          ) {
-            get().playTrack(updatedQueue[newQueueIndex]);
-          }
-        },
+        {/* CENTER - Playback Controls */}
+        <div className="flex flex-col items-center w-1/3">
+          <div className="flex items-center gap-4 mb-2">
+            {/* Shuffle Button */}
+            <button
+              onClick={toggleShuffle}
+              className={`p-2 rounded-full transition-colors ${
+                shuffle
+                  ? "text-[#1DB954] hover:text-[#1ed760]"
+                  : "text-gray-400 hover:text-white"
+              }`}
+              title={shuffle ? "Disable shuffle" : "Enable shuffle"}
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+              </svg>
+            </button>
 
-        // ================================
-        // ▶ PLAY TRACK (GLOBAL)
-        // ================================
-        playTrack:(track) => {
-          const { player, currentTrack, isPlaying, queue } = get();
+            {/* Previous Track */}
+            <button
+              onClick={playPrevious}
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+              title="Previous track"
+              disabled={queue.length === 0 || queueIndex <= 0}
+            >
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+              </svg>
+            </button>
 
-          if (!track || !track.videoId) {
-            console.error("playTrack: Invalid track provided", track);
-            return;
-          }
+            {/* Play / Pause */}
+            <button
+              onClick={togglePlay}
+              className="w-10 h-10 bg-[#1DB954] rounded-full flex items-center justify-center hover:scale-105 transition-transform hover:bg-[#1ed760]"
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
 
+            {/* Next Track */}
+            <button
+              onClick={playNext}
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+              title="Next track"
+              disabled={queue.length === 0 || queueIndex >= queue.length - 1}
+            >
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+              </svg>
+            </button>
+
+            {/* Loop Button */}
+            <button
+              onClick={toggleLoop}
+              className={`p-2 rounded-full transition-colors ${
+                loop !== "none"
+                  ? "text-[#1DB954] hover:text-[#1ed760]"
+                  : "text-gray-400 hover:text-white"
+              }`}
+              title={
+                loop === "none"
+                  ? "Enable loop"
+                  : loop === "one"
+                  ? "Loop one track"
+                  : "Loop all tracks"
+              }
+            >
+              {loop === "one" ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+                  <text x="8" y="19" fontSize="8" fill="currentColor">
+                    1
+                  </text>
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* Progress Bar with Time */}
+          <div className="flex items-center gap-3 w-full max-w-2xl">
+            <span className="text-xs text-gray-400 min-w-[40px] text-right">
+              {formatTime(currentTime)}
+            </span>
+
+            <Slider
+              value={[progress]}
+              max={100}
+              step={0.1}
+              onValueChange={(val) => {
+                seekTo(val[0]);
+              }}
+              className="w-full cursor-pointer"
+              trackClassName="bg-gray-700"
+              rangeClassName="bg-[#1DB954]"
+            />
+
+            <span className="text-xs text-gray-400 min-w-[40px]">
+              {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE - Additional Controls */}
+        <div className="w-1/3 flex justify-end gap-3 text-gray-400">
+          {/* Volume Control */}
+          <div className="relative group flex items-center">
+            {/* Volume Icon */}
+            <button
+              className="hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+              title={`Volume: ${Math.round(volume)}%`} // Removed *100; now shows 0-100%
+            >
+              {volume === 0 ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M3.63 3.63a.996.996 0 000 1.41L7.29 9H6c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1.29l3.66 3.66c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L5.05 5.05a.996.996 0 00-1.41 0l-3.66 3.66c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L3.63 3.63zm12.5 12.5l-1.41-1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+                </svg>
+              ) : volume < 50 ? ( // Changed from 0.5 to 50 (mid-volume threshold)
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                </svg>
+              )}
+            </button>
+
+            {/* Volume Slider */}
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 bg-neutral-900 p-3 rounded-lg shadow-xl border border-neutral-700">
+              <Slider
+                orientation="vertical"
+                value={[volume]} // Removed *100; now directly uses 0-100
+                onValueChange={(v) => setVolume(v[0])} // Passes 0-100 to store
+                max={100}
+                step={1}
+                className="h-28"
+                trackClassName="bg-gray-700"
+                rangeClassName="bg-[#1DB954]"
+              />
+            </div>
+          </div>
+          {/* Queue Button */}
+          <button
+            onClick={toggleQueueDrawer}
+            className={`p-2 transition-colors rounded-full hover:bg-white/10 ${
+              queue.length > 0
+                ? "text-gray-400 hover:text-white"
+                : "text-gray-600 cursor-not-allowed"
+            }`}
+            title={queue.length > 0 ? "Show queue" : "Queue is empty"}
+            disabled={queue.length === 0}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z" />
+            </svg>
+            {queue.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#1DB954] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                {queue.length}
+              </span>
+            )}
+          </button>
+          {/* More Options Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:text-white hover:bg-white/10"
+              >
+                <Ellipsis className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent className="bg-neutral-800 text-white border-neutral-700 w-48">
+              <DropdownMenuItem
+                onClick={() => setShowAddDialog(true)}
+                className="cursor-pointer focus:bg-neutral-700"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                Add to playlist
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  toast.info(
+                    `Queue: ${queueInfo.positionInQueue} of ${queueInfo.queueLength} tracks`
+                  );
+                }}
+                className="cursor-pointer focus:bg-neutral-700"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2z" />
+                </svg>
+                Queue info
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Like Button */}
+          <LikeButtonErrorBoundary>
+            <LikeButton song={currentTrack} />
+          </LikeButtonErrorBoundary>
+        </div>
+      </div>
+
+      {/* ADD TO PLAYLIST MODAL */}
+      <AddToPlaylistModal
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        playlists={Array.isArray(playlists) ? playlists : []}
+        refetchPlaylists={refetch}
+        song={currentTrack}
+        userId={user.id}
+        onAddSong={async (playlistId, song) => {
           try {
-            // Toggle play/pause if same track
-            if (currentTrack?.videoId === track.videoId) {
-              get().togglePlay();
-              return;
-            }
-            player.setVolume(volume);
-            player.seekTo(0, true);
-
-
-            player.loadVideoById(track.videoId);
-
-            // Find track index in queue if it exists
-            const trackIndex = queue.findIndex(
-              (t) => t.videoId === track.videoId
-            );
-            const newQueueIndex =
-              trackIndex !== -1 ? trackIndex : get().queueIndex;
-
-            set({
-              currentTrack: track,
-              isPlaying: true,
-              progress: 0,
-              currentTime: 0,
-              queueIndex: newQueueIndex,
-              isBuffering: false,
-            });
+            await addSongToPlaylist({ playlistId, song });
+            toast.success("Song added to playlist!");
+            setShowAddDialog(false);
+            refetch();
           } catch (err) {
-            console.error("Playback error:", err);
-            set({ isPlaying: false, isBuffering: false });
-          }
-        },
-
-        // ================================
-        // ▶ SET QUEUE + START PLAY
-        // ================================
-        setQueue: (tracks, startIndex = 0) => {
-          if (!tracks || tracks.length === 0) {
-            console.warn("setQueue: No tracks provided");
-            return;
-          }
-
-          const { currentTrack, player } = get();
-          const validStartIndex = Math.max(
-            0,
-            Math.min(startIndex, tracks.length - 1)
-          );
-          const startingTrack = tracks[validStartIndex];
-
-          const isSameTrack = currentTrack?.videoId === startingTrack?.videoId;
-
-          console.log(
-            `Setting queue with ${tracks.length} tracks, starting at index ${validStartIndex}`
-          );
-
-          set({
-            queue: tracks,
-            queueIndex: validStartIndex,
-          });
-
-          // Only change audio if it's a different track
-          if (!isSameTrack) {
-            get().playTrack(startingTrack);
-          } else {
-            // Same track, just ensure it's playing and update queue context
-            if (!get().isPlaying) {
-              player.playVideo().catch(console.error);
-            }
-          }
-        },
-
-        // ================================
-        // ▶ PLAY TRACK IN QUEUE BY INDEX
-        // ================================
-        playTrackAtIndex: (index) => {
-          const { queue } = get();
-
-          if (index < 0 || index >= queue.length) {
-            console.warn(
-              `playTrackAtIndex: Index ${index} out of bounds (queue length: ${queue.length})`
-            );
-            return;
-          }
-
-          console.log(`Playing track at queue index: ${index}`);
-          set({ queueIndex: index });
-          get().playTrack(queue[index]);
-        },
-
-        // ================================
-        // ⏭️ PLAY NEXT TRACK (FIXED)
-        // ================================
-        playNext: () => {
-          const { queue, queueIndex, shuffle, loop, player, currentTrack } =
-            get();
-
-          console.log("playNext called:", {
-            queueLength: queue.length,
-            queueIndex,
-            shuffle,
-            loop,
-            currentTrack: currentTrack?.title,
-          });
-
-          // No queue or invalid state
-          if (!queue.length || queueIndex === -1) {
-            console.log("No queue or invalid index - stopping playback");
-            player.pauseVideo();
-            set({ isPlaying: false });
-            return;
-          }
-
-          // LOOP ONE - restart current track
-          if (loop === "one" && currentTrack) {
-            console.log("Loop one - restarting current track");
-            player.getCurrentTime(0);
-            player.playVideo().catch(console.error);
-            return;
-          }
-
-          // SHUFFLE MODE
-          if (shuffle) {
-            let randomIndex;
-            // Ensure we don't get the same track if queue has more than 1 track
-            if (queue.length === 1) {
-              randomIndex = 0;
+            if (
+              err?.response?.status === 400 ||
+              err?.response?.status === 409
+            ) {
+              toast.warn("Song already exists in playlist");
             } else {
-              do {
-                randomIndex = Math.floor(Math.random() * queue.length);
-              } while (randomIndex === queueIndex && queue.length > 1);
-            }
-
-            console.log("Shuffle - playing random index:", randomIndex);
-            set({ queueIndex: randomIndex });
-            get().playTrack(queue[randomIndex]);
-            return;
-          }
-
-          const nextIndex = queueIndex + 1;
-
-          // Regular next track in queue
-          if (nextIndex < queue.length) {
-            console.log("Playing next track at index:", nextIndex);
-            set({ queueIndex: nextIndex });
-            get().playTrack(queue[nextIndex]);
-            return;
-          }
-
-          // END OF QUEUE - handle loop modes
-          if (loop === "all") {
-            // Loop back to beginning
-            console.log("Loop all - restarting from beginning");
-            set({ queueIndex: 0 });
-            get().playTrack(queue[0]);
-          } else {
-            // No loop - stop playback
-            console.log("End of queue - stopping playback");
-            player.pauseVideo();
-            set({
-              isPlaying: false,
-              progress: 0,
-              currentTime: 0,
-            });
-          }
-        },
-
-        // ================================
-        // ⏮️ PLAY PREVIOUS TRACK (FIXED)
-        // ================================
-        playPrevious: () => {
-          const { player, queue, queueIndex, currentTrack } = get();
-
-          console.log("playPrevious:", {
-            queueLength: queue.length,
-            queueIndex,
-            currentTime: player.getCurrentTime(),
-          });
-
-          // If track has been playing for more than 3 seconds, restart it
-          if (player.getCurrentTime() > 3) {
-            console.log("Restarting current track (played >3s)");
-            player.seekTo(0, true);
-            return;
-          }
-
-          // No previous tracks available
-          if (queueIndex <= 0) {
-            console.log("No previous track available");
-            // If we're at the first track, just restart it
-            if (currentTrack) {
-              player.seekTo(0, true);
-            }
-            return;
-          }
-
-          // Go to previous track
-          const prevIndex = queueIndex - 1;
-          console.log("Going to previous track at index:", prevIndex);
-          set({ queueIndex: prevIndex });
-          get().playTrack(queue[prevIndex]);
-        },
-
-        // ================================
-        // 🗑️ REMOVE FROM QUEUE
-        // ================================
-        removeFromQueue: (index) => {
-          const { queue, queueIndex, currentTrack, player } = get();
-
-          if (index < 0 || index >= queue.length) {
-            console.warn("removeFromQueue: Index out of bounds");
-            return;
-          }
-
-          const newQueue = queue.filter((_, i) => i !== index);
-          const removedTrack = queue[index];
-
-          let newQueueIndex = queueIndex;
-
-          // Adjust queue index if we're removing the current or a previous track
-          if (index < queueIndex) {
-            newQueueIndex--;
-          } else if (index === queueIndex) {
-            // If removing current track, stop playback
-            if (currentTrack?.videoId === removedTrack.videoId) {
-              player.pauseVideo();
-              set({
-                isPlaying: false,
-                currentTrack: null,
-              });
-            }
-            // If not the last track, move to same index (which will be next track)
-            // If last track, set to -1
-            newQueueIndex = index < newQueue.length ? index : -1;
-          }
-
-          set({
-            queue: newQueue,
-            queueIndex: newQueueIndex,
-          });
-
-          console.log(
-            `Removed track from queue. New length: ${newQueue.length}`
-          );
-
-          // If we removed the current track and there's a new current track, play it
-          if (index === queueIndex && newQueueIndex !== -1) {
-            get().playTrack(newQueue[newQueueIndex]);
-          }
-        },
-
-        // ================================
-        // ▶ TOGGLE PLAY/PAUSE
-        // ================================
-        togglePlay: () => {
-          const { player, isPlaying, currentTrack } = get();
-
-          if (!currentTrack) {
-            console.warn("No track to play");
-            return;
-          }
-
-          if (isPlaying) {
-            player.pauseVideo();
-            set({ isPlaying: false });
-          } else {
-            player.playVideo();
-            set({ isPlaying: true });
-          }
-        },
-
-        // ================================
-        // ⏩ SEEK BAR
-        // ================================
-        seekTo: (percent) => {
-          const { player } = get();
-          const duration = player.getDuration();
-          player.seekTo((percent / 100) * duration, true);
-        },
-
-        seekToTime: (seconds) => {
-          const { player } = get();
-          player.seekTo(seconds, true);
-        },
-
-        // ================================
-        // 🔊 VOLUME
-        // ================================
-        setVolume: (value) => {
-          const { player } = get();
-          const vol = Math.max(0, Math.min(1, value / 100));
-          player.setVolume(vol);
-          set({ volume: vol });
-        },
-
-        toggleMute: () => {
-          const { player, volume } = get();
-          if (player.isMuted()) player.unMute();
-          else player.mute();
-          set({ volume: player.isMuted() ? 0 : volume });
-        },
-
-        // ================================
-        // 🔄 SHUFFLE + LOOP
-        // ================================
-        toggleShuffle: () => {
-          const newShuffle = !get().shuffle;
-          set({ shuffle: newShuffle });
-          console.log("Shuffle toggled:", newShuffle);
-        },
-
-        toggleLoop: () => {
-          const { loop } = get();
-          const newLoop =
-            loop === "none" ? "one" : loop === "one" ? "all" : "none";
-
-          set({ loop: newLoop });
-          console.log("Loop mode:", newLoop);
-        },
-
-        // ================================
-        // 🧹 CLEAR QUEUE
-        // ================================
-        clearQueue: () => {
-          const { player } = get();
-          player.pauseVideo();
-
-          set({
-            queue: [],
-            queueIndex: -1,
-            isPlaying: false,
-          });
-
-          console.log("Queue cleared");
-        },
-
-        // ================================
-        // 📋 GET QUEUE INFO
-        // ================================
-        // Add this to your usePlayerStore return object:
-
-        // ================================
-        // 🎯 GET QUEUE INFO (IMPROVED)
-        // ================================
-        getQueueInfo: () => {
-          const { queue, queueIndex, currentTrack } = get();
-
-          // Handle case where queueIndex is -1 but we have currentTrack
-          let actualIndex = queueIndex;
-          let positionInQueue = queueIndex + 1;
-
-          if (queueIndex === -1 && currentTrack) {
-            // Try to find current track in queue
-            const foundIndex = queue.findIndex(
-              (track) => track.videoId === currentTrack.videoId
-            );
-            if (foundIndex !== -1) {
-              actualIndex = foundIndex;
-              positionInQueue = foundIndex + 1;
+              toast.error("Failed to add song");
             }
           }
+        }}
+      />
 
-          return {
-            currentTrack,
-            currentIndex: actualIndex,
-            nextTrack: queue[actualIndex + 1] || null,
-            previousTrack: actualIndex > 0 ? queue[actualIndex - 1] : null,
-            queueLength: queue.length,
-            positionInQueue: positionInQueue,
-          };
-        },
-
-        // ================================
-        // 🎯 VALIDATE QUEUE STATE (NEW)
-        // ================================
-        validateQueueState: () => {
-          const { queue, queueIndex, currentTrack } = get();
-
-          // If we have a current track but invalid queue index, try to fix it
-          if (currentTrack && queueIndex === -1 && queue.length > 0) {
-            const foundIndex = queue.findIndex(
-              (track) => track.videoId === currentTrack.videoId
-            );
-            if (foundIndex !== -1) {
-              console.log("Fixed queue index:", foundIndex);
-              set({ queueIndex: foundIndex });
-              return true;
-            }
-          }
-
-          return queueIndex !== -1 && queue.length > 0;
-        },
-
-        // ================================
-        // 📊 PROGRESS TIMER
-        // ================================
-        startProgressTimer: () => {
-          clearInterval(get().progressTimer);
-
-          const timer = setInterval(() => {
-            const { player } = get();
-            if (!player) return;
-
-            const currentTime = player.getCurrentTime();
-            const duration = player.getDuration();
-
-            set({
-              currentTime,
-              duration,
-              progress: duration
-                ? (currentTime / duration) * 100
-                : 0,
-            });
-          }, 1000);
-
-          set({ progressTimer: timer });
-        },
-
-        handleEnded: () => {
-          clearInterval(get().progressTimer);
-          get().playNext();
-        },
-
-        // ================================
-        // 🔄 RESET PLAYER
-        // ================================
-        reset: () => {
-          const { player } = get();
-          player.pauseVideo();
-
-          clearInterval(get().progressTimer);
-
-          set({
-            currentTrack: null,
-            isPlaying: false,
-            isBuffering: false,
-            progress: 0,
-            currentTime: 0,
-            duration: 0,
-            queue: [],
-            queueIndex: -1,
-            volume: 1,
-            shuffle: false,
-            loop: "none",
-          });
-
-          console.log("Player reset");
-        },
-      };
-    },
-    {
-      name: "player-storage",
-      partialize: (state) => ({
-        volume: state.volume,
-        shuffle: state.shuffle,
-        loop: state.loop,
-        // Don't persist audio element or current playback state
-      }),
-    }
-  )
-);
+      {/* QUEUE DRAWER - Fixed prop passing */}
+      {showQueueDrawer && (
+        <QueueDrawer open={showQueueDrawer} onClose={toggleQueueDrawer} />
+      )}
+    </div>
+  );
+}
