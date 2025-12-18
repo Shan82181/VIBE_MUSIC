@@ -52,7 +52,11 @@ export const usePlayerStore = create(
                 onReady: () => {
                   console.log("YouTube player ready!");
                   set({ player: ytPlayer, isReady: true });
-                  ytPlayer.setVolume(get().volume);
+
+                  // Set initial volume
+                  setTimeout(() => {
+                    ytPlayer.setVolume(get().volume);
+                  }, 100);
                 },
                 onStateChange: (e) => {
                   const YTState = window.YT.PlayerState;
@@ -60,6 +64,12 @@ export const usePlayerStore = create(
                   if (e.data === YTState.PLAYING) {
                     set({ isPlaying: true, isBuffering: false });
                     get().startProgressTimer();
+                    setTimeout(() => {
+                      const { player, volume } = get();
+                      if (player && typeof player.setVolume === "function") {
+                        player.setVolume(volume);
+                      }
+                    }, 50);
                   }
 
                   if (e.data === YTState.PAUSED) {
@@ -120,12 +130,12 @@ export const usePlayerStore = create(
           }
         },
 
-        
         // ================================
-        // ▶ PLAY TRACK (GLOBAL)
+        // ▶ PLAY TRACK (GLOBAL) - FIXED VOLUME
         // ================================
+
         playTrack: (track) => {
-          const { player, currentTrack, isPlaying, queue } = get();
+          const { player, currentTrack, isPlaying, queue, volume } = get();
 
           if (!player) {
             console.warn("playTrack: Player not initialized yet. Skipping.");
@@ -143,13 +153,19 @@ export const usePlayerStore = create(
               get().togglePlay();
               return;
             }
-            player.setVolume(get().volume);
-            player.seekTo(0, true);
 
+            // Clear any existing progress timer
+            clearInterval(get().progressTimer);
+
+            // Load the new video
             player.loadVideoById(track.videoId);
-            if (player) {
-              player.setVolume(get().volume);
-            }
+
+            // Set volume AFTER loading
+            setTimeout(() => {
+              if (player && typeof player.setVolume === "function") {
+                player.setVolume(volume);
+              }
+            }, 100);
 
             // Find track index in queue if it exists
             const trackIndex = queue.findIndex(
@@ -166,6 +182,9 @@ export const usePlayerStore = create(
               queueIndex: newQueueIndex,
               isBuffering: false,
             });
+
+            // Start progress timer
+            get().startProgressTimer();
           } catch (err) {
             console.error("Playback error:", err);
             set({ isPlaying: false, isBuffering: false });
@@ -175,13 +194,16 @@ export const usePlayerStore = create(
         // ================================
         // ▶ SET QUEUE + START PLAY
         // ================================
+        // ================================
+        // ▶ SET QUEUE + START PLAY (WITH VOLUME FIX)
+        // ================================
         setQueue: (tracks, startIndex = 0) => {
           if (!tracks || tracks.length === 0) {
             console.warn("setQueue: No tracks provided");
             return;
           }
 
-          const { currentTrack, player } = get();
+          const { currentTrack, player, volume } = get();
           const validStartIndex = Math.max(
             0,
             Math.min(startIndex, tracks.length - 1)
@@ -198,6 +220,13 @@ export const usePlayerStore = create(
             queue: tracks,
             queueIndex: validStartIndex,
           });
+
+          // Set volume before playing
+          setTimeout(() => {
+            if (player && typeof player.setVolume === "function") {
+              player.setVolume(volume);
+            }
+          }, 100);
 
           // Only change audio if it's a different track
           if (!isSameTrack) {
