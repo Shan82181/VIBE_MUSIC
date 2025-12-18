@@ -52,11 +52,13 @@ export const usePlayerStore = create(
                 onReady: () => {
                   console.log("YouTube player ready!");
                   set({ player: ytPlayer, isReady: true });
-
-                  // Set initial volume
-                  setTimeout(() => {
-                    ytPlayer.setVolume(get().volume);
-                  }, 100);
+                  // Unmute first, then set volume
+                  ytPlayer.unMute();
+                  ytPlayer.setVolume(get().volume);
+                  console.log(
+                    "Player unmuted and volume set to:",
+                    get().volume
+                  );
                 },
                 onStateChange: (e) => {
                   const YTState = window.YT.PlayerState;
@@ -162,9 +164,8 @@ export const usePlayerStore = create(
 
             // Set volume AFTER loading
             setTimeout(() => {
-              if (player && typeof player.setVolume === "function") {
-                player.setVolume(volume);
-              }
+              player.unMute();
+              player.setVolume(volume);
             }, 100);
 
             // Find track index in queue if it exists
