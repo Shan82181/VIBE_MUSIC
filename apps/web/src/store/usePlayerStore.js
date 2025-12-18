@@ -19,7 +19,7 @@ export const usePlayerStore = create(
         progressTimer: null, // Interval timer for progress updates
         currentTime: 0, // Current time in seconds
         duration: 0, // Duration in seconds
-        volume: 100, // Volume (0.0 to 1.0)
+        //volume: 100, // Volume (0-100)
 
         // QUEUE SYSTEM
         queue: [],
@@ -54,11 +54,9 @@ export const usePlayerStore = create(
                   set({ player: ytPlayer, isReady: true });
                   // Unmute first, then set volume
                   ytPlayer.unMute();
-                  ytPlayer.setVolume(get().volume);
+                  ytPlayer.setVolume(100);
                   console.log(
-                    "Player unmuted and volume set to:",
-                    get().volume
-                  );
+                    "Player unmuted and volume set to:100");
                 },
                 onStateChange: (e) => {
                   const YTState = window.YT.PlayerState;
@@ -67,9 +65,9 @@ export const usePlayerStore = create(
                     set({ isPlaying: true, isBuffering: false });
                     get().startProgressTimer();
                     setTimeout(() => {
-                      const { player, volume } = get();
+                      const { player } = get();
                       if (player && typeof player.setVolume === "function") {
-                        player.setVolume(volume);
+                        player.setVolume(100);
                       }
                     }, 50);
                   }
@@ -137,7 +135,7 @@ export const usePlayerStore = create(
         // ================================
 
         playTrack: (track) => {
-          const { player, currentTrack, isPlaying, queue, volume } = get();
+          const { player, currentTrack, isPlaying, queue } = get();
 
           if (!player) {
             console.warn("playTrack: Player not initialized yet. Skipping.");
@@ -165,7 +163,7 @@ export const usePlayerStore = create(
             // Set volume AFTER loading
             setTimeout(() => {
               player.unMute();
-              player.setVolume(volume);
+              player.setVolume(100);
             }, 100);
 
             // Find track index in queue if it exists
@@ -204,7 +202,7 @@ export const usePlayerStore = create(
             return;
           }
 
-          const { currentTrack, player, volume } = get();
+          const { currentTrack, player } = get();
           const validStartIndex = Math.max(
             0,
             Math.min(startIndex, tracks.length - 1)
@@ -224,9 +222,8 @@ export const usePlayerStore = create(
 
           // Set volume before playing
           setTimeout(() => {
-            if (player && typeof player.setVolume === "function") {
-              player.setVolume(volume);
-            }
+            player.unMute();
+            player.setVolume(100);
           }, 100);
 
           // Only change audio if it's a different track
@@ -453,22 +450,7 @@ export const usePlayerStore = create(
           player.seekTo(seconds, true);
         },
 
-        // ================================
-        // 🔊 VOLUME
-        // ================================
-        setVolume: (value) => {
-          const { player } = get();
-          //const vol = Math.max(0, Math.min(100, value));
-          player.setVolume(value);
-          set({ volume: value });
-        },
-
-        toggleMute: () => {
-          const { player, volume } = get();
-          if (player.isMuted()) player.unMute();
-          else player.mute();
-          set({ volume: player.isMuted() ? 0 : volume });
-        },
+        
 
         // ================================
         // 🔄 SHUFFLE + LOOP
@@ -607,7 +589,6 @@ export const usePlayerStore = create(
             duration: 0,
             queue: [],
             queueIndex: -1,
-            volume: 1,
             shuffle: false,
             loop: "none",
           });
@@ -619,7 +600,6 @@ export const usePlayerStore = create(
     {
       name: "player-storage",
       partialize: (state) => ({
-        volume: state.volume,
         shuffle: state.shuffle,
         loop: state.loop,
         // Don't persist audio element or current playback state
